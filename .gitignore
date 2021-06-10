@@ -1,0 +1,10 @@
+*.zip
+*.wav
+SDRSharp*
+__pycache__
+*.pyc
+*.pyc*
+*.gif
+timeseries
+*.png
+data
