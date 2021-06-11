@@ -37,9 +37,9 @@ def read_data_from_wav(wav_path, fs, step_timelength, step_framelength, time_beg
 
 #OUTPUT
 def waterfall(signal, outputType='png'):
-    """our main method of visulization"""
+    """our main method of visualization"""
     plt.figure(figsize=(10,5))
-    scale = 1e-3
+    scale = 1e-3                                    #Transform Hz to kHz
     centroids = np.empty(signal.total_step)
     mags = np.empty((signal.total_step, signal.resolution))
     times = [(signal.time_of_record + timedelta(seconds=step*signal.step_timelength)).strftime('%H:%M:%S') for step in range(0, signal.total_step+1, int(signal.total_step/10))]
@@ -57,7 +57,7 @@ def waterfall(signal, outputType='png'):
 
     f = (signal.simplifiedFreq + signal.center_frequency) * scale
     X, Y = np.meshgrid(f, range(signal.total_step))
-    plt.pcolormesh(X, Y, mags, cmap='Blues', zorder=0)
+    plt.pcolormesh(X, Y, mags, cmap='Blues', shading='auto', zorder=0)
     plt.yticks(range(0,signal.total_step, int(signal.total_step/10)), times)
     satellite_name, station_name, prediction_from_TLE = signal.Doppler_freqs_from_TLE()
     prediction_from_TLE *= scale
@@ -79,11 +79,10 @@ def waterfall(signal, outputType='png'):
 def calculated_vs_predicted(signal, outputType='png'):
     """a more simple version of waterfall"""
     plt.figure(figsize=(10,5))
-    scale = 1e-3
+    scale = 1e-3                        #Transform Hz to kHz
     prediction_from_TLE = signal.Doppler_freqs_from_TLE()*scale
     plt.plot(prediction_from_TLE, range(signal.total_step), '.', color='blue', markersize=1)
     centroids = np.empty(signal.total_step)
-    # mags = np.empty(signal.total_step)
     times = [(signal.time_of_record + timedelta(seconds=step*signal.step_timelength)).strftime('%H:%M:%S') for step in range(0, signal.total_step+1, int(signal.total_step/10))]
 
     for i in range(signal.total_step):

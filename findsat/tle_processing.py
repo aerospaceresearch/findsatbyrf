@@ -22,15 +22,15 @@ class TLEprediction:
         with open(data_path+"/station.txt", "r") as f:
             for _ in range(4):
                 input_string = f.readline().replace(" ","").strip("\n").split("=")
-                if input_string[0] == 'name':
+                if 'name' in input_string[0]:
                     self.station_name = input_string[1]
-                elif input_string[0] == 'long':
+                elif 'long' in input_string[0]:
                     station_long = float(input_string[1])
-                elif input_string[0] == 'lat':
+                elif 'lat' in input_string[0]:
                     station_lat = float(input_string[1])
-                elif input_string[0] == 'alt':
+                elif 'alt' in input_string[0]:
                     station_alt = float(input_string[1])
-        self.station = wgs84.latlon(station_long, station_lat, station_alt)
+        self.station = wgs84.latlon(station_lat, station_long, station_alt)
         self.satellite = load.tle_file(data_path+"/satellite.tle")[0]
         self.time_of_record = time_of_record.replace(tzinfo=utc)
         self.signal_time = [time_scale.utc(self.time_of_record + datetime.timedelta(seconds=step*step_timelength)) for step in range(total_step)]
