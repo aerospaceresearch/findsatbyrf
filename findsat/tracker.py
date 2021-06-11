@@ -65,7 +65,6 @@ class signal:
 
     def read_data_from_wav(self):
         io.read_data_from_wav(self.wav_path, self.fs, self.step_timelength, self.step_framelength, self.time_begin, self.time_end, self.time_data)
-        print("\nDone reading data\n")
 
     def find_centroids(self):
         while True:
@@ -96,7 +95,7 @@ class signal:
         return freqs_from_TLE.satellite.name, freqs_from_TLE.station_name, freqs_from_TLE.Doppler_prediction(self.expected_frequency)
 
     def plot(self):
-        io.waterfall(self)
+        io.double_plot(self)
 
 
 

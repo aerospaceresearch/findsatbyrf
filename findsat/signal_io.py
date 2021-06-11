@@ -154,14 +154,19 @@ def double_plot(signal, outputType = None):
     ax2.ticklabel_format(useOffset=False)
     ax2.grid()
     ax2.set_ylim([0,signal.total_step+1])
-    ax2.set_xlim([(signal.expected_frequency-5e3-1e3)*scale, (signal.expected_frequency+5e3+1e3)*scale])
+    # ax2.set_xlim([(signal.expected_frequency-5e3-1e3)*scale, (signal.expected_frequency+5e3+1e3)*scale])
     ax2.set_xlabel("Frequency (kHz)")
     ax2.set_ylabel("Time step")
     ax2.set_title(f"{signal.name}: Centroid position")
-    ax2.set_xticks(np.arange(signal.expected_frequency-5e3, signal.expected_frequency+5e3+1e3, 1e3)*scale)
+    # ax2.set_xticks(np.arange(signal.expected_frequency-5e3, signal.expected_frequency+5e3+1e3, 1e3)*scale)
+
+    plot_area = int(signal.bandWidth / 2)
+    plot_tick = int(plot_area / 4)
+    ax2.set_xlim([(signal.expected_frequency-plot_area)*scale, (signal.expected_frequency+plot_area)*scale])
+    ax2.set_xticks(np.around(np.arange(signal.expected_frequency-plot_area, signal.expected_frequency+plot_area+plot_tick, plot_tick)*scale,decimals=1))
 
     for i in range(signal.total_step):
-        print(f"{int(i/signal.total_step*100)}%")
+        print(f"Analyzing input... {i/signal.total_step*100:.2f}%", end='\r')
         step, centroid, mag = signal.freq_data.get()
         ax1.plot(f+signal.center_frequency*scale, mag, '.', markersize=3.)        
         if centroid != None:
@@ -172,17 +177,19 @@ def double_plot(signal, outputType = None):
         ax1.grid()
         ax1.set_ylim([-20,40])
         ax1.set_yticks(np.arange(40,-30,-10))
-        ax1.set_xticks(np.arange(signal.expected_frequency-signal.bandWidth/2, signal.expected_frequency+signal.bandWidth/2+signal.bandWidth/10, signal.bandWidth/10)*scale)
-        ax1.set_title(f'{signal.name}: Power spectral density at step {step:04d} ({datetime.timedelta(seconds=int(step*signal.step_timelength))}) with each step = {signal.step_timelength}s')
+        ax1.set_xlim([(signal.expected_frequency-plot_area)*scale, (signal.expected_frequency+plot_area)*scale])
+        ax1.set_xticks(np.around(np.arange(signal.expected_frequency-plot_area, signal.expected_frequency+plot_area+plot_tick, plot_tick)*scale,decimals=1))
+        # ax1.set_xticks(np.arange(signal.expected_frequency-signal.bandWidth/2, signal.expected_frequency+signal.bandWidth/2+signal.bandWidth/10, signal.bandWidth/10)*scale)
+        ax1.set_title(f'{signal.name}: Power spectral density at step {step:04d}')# ({datetime.timedelta(seconds=int(step*signal.step_timelength))}) with each step = {signal.step_timelength}s')
         ax1.set_ylabel('Amplitude (dB)')
-        fig.savefig(f'{PATH}/data/{step:04d}.png', dpi=300)
+        fig.savefig(f'{signal.data_path}/timeseries/{step:04d}.png', dpi=300)
         ax1.clear()
     print("Finished plotting")
     if outputType == None:
-        outputType = 'gif'
-    # os.system(f"ffmpeg -y -framerate {int(1/signal.step_timelength)} -i {PATH}/findsat/data/%04d.png -i {PATH}/findsat/plot_palette.png -lavfi paletteuse {PATH}/findsat/data/{signal.name}.{outputType}")
+        outputType = 'mp4'
+    os.system(f"ffmpeg -y -framerate {int(1/signal.step_timelength)} -i {PATH+signal.data_path}/timeseries/%04d.png -i {PATH}plot_palette.png -lavfi paletteuse {signal.data_path}/{signal.name}.{outputType}")
 
     # if os.name == 'nt':
-        # os.system(f"del {os.path.normpath(PATH+'sat/*.png')}")
+        # os.system(f"del {os.path.normpath(signal.data_path)}\timeseries\\*.png)")
     # else:
-        # os.system(f"rm {PATH}/outputs/timeseries/*.png")
+        # os.system(f"rm {signal.data_path}/timeseries/*.png")
