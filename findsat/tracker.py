@@ -14,6 +14,7 @@ class signal:
             bandWidth = None,
             step_timelength = None,
             resolution = None,
+            sensitivity = None,
             pass_bandwidth = None,
             time_of_record = None):
 
@@ -35,7 +36,7 @@ class signal:
             self.expected_frequency = expected_frequency
 
         if resolution  == None:
-            self.resolution = 512
+            self.resolution = 2400
         else:
             self.resolution = resolution
 
@@ -45,6 +46,10 @@ class signal:
             self.bandWidth = bandWidth
 
         self.sensitivity = int(self.bandWidth/self.resolution)
+
+        if sensitivity != None:
+            self.sensitivity = sensitivity
+            self.resolution = int(self.bandWidth/sensitivity)
 
         if center_frequency == None:
             self.center_frequency = 0
@@ -94,7 +99,7 @@ class signal:
                 self.time_data.put(None)
                 break
             step, local_signal = queue_output
-            local_signal *= np.hanning(self.step_framelength)
+            #local_signal *= np.hanning(self.step_framelength)
             raw_kernel = np.abs(np.fft.fft(local_signal))
             for channel in range(self.channel_count):
                 channel_kernel = 20 * np.log10(raw_kernel[self.bandwidth_indices[channel]])
