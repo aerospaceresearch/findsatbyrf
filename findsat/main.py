@@ -20,7 +20,7 @@ if __name__ == '__main__':
 
     signal.read_info_from_wav(time_end=None)  #unit of second, set time_end to None to analyze the entire wave file
     signal.add_channel(channel_frequency=137.9125e6, channel_bandwidth=60e3)
-    signal.add_channel(channel_frequency=137.9170e6, channel_bandwidth=60e3)
+    signal.add_channel(channel_frequency=138.035e6, channel_bandwidth=60e3)
     start_time = datetime.now()
 
     reading_process = multiprocessing.Process(target=signal.read_data_from_wav)

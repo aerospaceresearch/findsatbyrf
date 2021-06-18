@@ -71,7 +71,7 @@ class signal:
         self.fs, self.step_framelength, self.max_step, self.time_begin, self.time_end = io.read_info_from_wav(self.wav_path, self.step_timelength, time_begin, time_end)
         self.full_freq = np.fft.fftfreq(int(self.fs * self.step_timelength), 1/(self.fs))
         self.total_step = int((self.time_end-self.time_begin)/self.step_timelength)
-        self.freqs_from_TLE = tle.TLEprediction(self.data_path, self.time_of_record, self.total_step, self.step_timelength)
+
 
     def read_data_from_wav(self):
         io.read_data_from_wav(self.wav_path, self.fs, self.step_timelength, self.step_framelength, self.time_begin, self.time_end, self.time_data)
@@ -115,7 +115,8 @@ class signal:
         self.freq_data.put('END')
 
     def Doppler_freqs_from_TLE(self, channel):
-        return self.freqs_from_TLE.satellite.name, self.freqs_from_TLE.station_name, self.freqs_from_TLE.Doppler_prediction(self.channel_frequencies[channel])
+        freqs_from_TLE = tle.TLEprediction(self.data_path, self.time_of_record, self.total_step, self.step_timelength)
+        return freqs_from_TLE.satellite.name, freqs_from_TLE.station_name, freqs_from_TLE.Doppler_prediction(self.channel_frequencies[channel])
 
     def plot(self):
         io.waterfall(self)

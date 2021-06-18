@@ -2,6 +2,7 @@ from skyfield.api import load, wgs84, utc
 from scipy.constants import c
 import numpy as np
 import datetime
+import os
 
 time_scale = load.timescale()
 
@@ -19,7 +20,7 @@ def doppler_calculator(original_freq, station, satellite, time):
     
 class TLEprediction:
     def __init__(self, data_path, time_of_record, total_step, step_timelength):
-        with open(data_path+"/station.txt", "r") as f:
+        with open(os.path.normpath(data_path+"/station.txt"), "r") as f:
             for _ in range(4):
                 input_string = f.readline().replace(" ","").strip("\n").split("=")
                 if 'name' in input_string[0]:
@@ -31,7 +32,7 @@ class TLEprediction:
                 elif 'alt' in input_string[0]:
                     station_alt = float(input_string[1])
         self.station = wgs84.latlon(station_lat, station_long, station_alt)
-        self.satellite = load.tle_file(data_path+"/satellite.tle")[0]
+        self.satellite = load.tle_file(os.path.normpath(data_path+"/satellite.tle"))[0]
         self.time_of_record = time_of_record.replace(tzinfo=utc)
         self.signal_time = [time_scale.utc(self.time_of_record + datetime.timedelta(seconds=step*step_timelength)) for step in range(total_step)]
 
