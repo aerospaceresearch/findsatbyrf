@@ -38,46 +38,50 @@ def read_data_from_wav(wav_path, fs, step_timelength, step_framelength, time_beg
 #OUTPUT
 def waterfall(signal, outputType='png'):
     """our main method of visualization"""
-    channel = 0
-    plt.figure(figsize=(10,5))
+    # channel = 0
+    # fig, axs = plt.subplot(signal.channel_count)
+    # fig.suptitle(plt.title(f"Waterfall with Centroid positions\n{signal.name} signal recorded at {station_name} station on {signal.time_of_record.strftime('%Y-%m-%d')}")
     scale = 1e-3                                    #Transform Hz to kHz
-    centroids = np.empty(signal.total_step)
-    mags = np.empty((signal.total_step, len(signal.avg_freq_domain[channel])))
+    centroids = np.empty((signal.channel_count, signal.total_step))
+    mags = [np.empty((signal.total_step, len(signal.avg_freq_domain[channel]))) for channel in range(signal.channel_count)]
     times = [(signal.time_of_record + timedelta(seconds=step*signal.step_timelength)).strftime('%H:%M:%S') for step in range(0, signal.total_step+1, int(signal.total_step/10))]
 
     for i in range(signal.total_step):
         print(f"Analyzing input... {i/signal.total_step*100:.2f}%", end='\r')
-        step, centroid_set, mag_set = signal.freq_data.get()
-        centroid = centroid_set[channel]
-        mag = mag_set[channel]
-        mags[step] = mag
-        if centroid == None:
-            centroids[step] = None
-        else:
-            centroids[step] = (centroid + signal.center_frequency) * scale
-    print("Analyzing input... Done    ")
-    print("Plotting waterfall... ", end='\r')
+        step, centroids_at_a_step, mags_at_a_step = signal.freq_data.get()
+        centroids[:, step] = centroids_at_a_step
 
-    f = (signal.avg_freq_domain[channel] + signal.center_frequency) * scale
-    X, Y = np.meshgrid(f, range(signal.total_step))
-    plt.pcolormesh(X, Y, mags, cmap='Blues', shading='auto', zorder=0)
-    plt.yticks(range(0,signal.total_step, int(signal.total_step/10)), times)
-    # satellite_name, station_name, prediction_from_TLE = signal.Doppler_freqs_from_TLE()
-    # prediction_from_TLE *= scale
-    # plt.plot(prediction_from_TLE, range(signal.total_step), '.', color='green', label=f'Prediction from TLE of {satellite_name}', markersize=5, zorder=1)
-    plt.plot(centroids, range(signal.total_step), '.', color='red', label='Calculation from wave file', markersize=5, zorder=1 )
-    plt.grid()
-    plt.ticklabel_format(axis='x', useOffset=False)
-    plot_area = int(signal.channel_bandwidths[channel] / 2)
-    plot_tick = int(plot_area / 4)
-    plt.xlim([(signal.channel_frequencies[channel]-plot_area)*scale, (signal.channel_frequencies[channel]+plot_area)*scale])
-    plt.xticks(np.around(np.arange(signal.channel_frequencies[channel]-plot_area, signal.channel_frequencies[channel]+plot_area+plot_tick, plot_tick)*scale,decimals=1))
-    plt.xlabel("Frequency [kHz]")
-    plt.ylabel("Time in UTC") 
-    plt.legend()
-    # plt.title(f"Waterfall with Centroid positions\n{signal.name} signal recorded at {station_name} station on {signal.time_of_record.strftime('%Y-%m-%d')}")
-    plt.savefig(f'{PATH}/data/Waterfall_{signal.name}.{outputType}', dpi=300)
-    print("Plotting waterfall... Done")
+        for channel in range(signal.channel_count):
+            mags[channel][step] = mags_at_a_step[channel]
+            if centroids[channel, step] == None:
+                centroids[channel, step] = None
+            else:
+                centroids[channel, step] = (centroids[channel, step] + signal.center_frequency) * scale
+    print("Analyzing input... Done    ")
+
+    for channel in range(signal.channel_count):
+        print(f"Plotting waterfall for channel {channel}... ", end='\r')
+        plt.figure(figsize=(10,5))
+        f = (signal.avg_freq_domain[channel] + signal.center_frequency) * scale
+        X, Y = np.meshgrid(f, range(signal.total_step))
+        plt.pcolormesh(X, Y, mags[channel], cmap='Blues', shading='auto', zorder=0)
+        plt.yticks(range(0,signal.total_step, int(signal.total_step/10)), times)
+        satellite_name, station_name, prediction_from_TLE = signal.Doppler_freqs_from_TLE(channel)
+        prediction_from_TLE *= scale
+        plt.plot(prediction_from_TLE, range(signal.total_step), '.', color='green', label=f'Prediction from TLE of {satellite_name}', markersize=5, zorder=1)
+        plt.plot(centroids[channel], range(signal.total_step), '.', color='red', label='Calculation from wave file', markersize=5, zorder=1 )
+        plt.grid()
+        plt.ticklabel_format(axis='x', useOffset=False)
+        plot_area = int(signal.channel_bandwidths[channel] / 2)
+        plot_tick = int(plot_area / 4)
+        plt.xlim([(signal.channel_frequencies[channel]-plot_area)*scale, (signal.channel_frequencies[channel]+plot_area)*scale])
+        plt.xticks(np.around(np.arange(signal.channel_frequencies[channel]-plot_area, signal.channel_frequencies[channel]+plot_area+plot_tick, plot_tick)*scale,decimals=1))
+        plt.xlabel("Frequency [kHz]")
+        plt.ylabel("Time in UTC") 
+        plt.legend()
+        plt.title(f"Waterfall with Centroid positions\nChannel {channel} at {signal.channel_frequencies[channel]*scale} kHz of {signal.name} signal recorded at {station_name} station on {signal.time_of_record.strftime('%Y-%m-%d')}")
+        plt.savefig(f'{PATH}/data/Waterfall_{signal.name}_channel{channel}.{outputType}', dpi=300)
+        print(f"Plotting waterfall for channel {channel}... Done")
 
 def calculated_vs_predicted(signal, outputType='png'):
     """a more simple version of waterfall"""
