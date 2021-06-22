@@ -21,7 +21,8 @@ def read_info_from_wav(wav_path, step_timelength, time_begin, time_end):
             time_end = f.frames/fs
     return fs, step_framelength, max_step, time_begin, time_end
 
-def read_data_from_wav(wav_path, fs, step_timelength, step_framelength, time_begin, time_end, time_data):
+
+def multiprocess_read_data_from_wav(wav_path, fs, step_timelength, step_framelength, time_begin, time_end, time_data):
     with sf.SoundFile(wav_path, 'r') as f:
         # bitrate_dictionary = {'PCM_U8':255, 'PCM_S8':127, 'PCM_16': 32767}
         # normalize_factor = bitrate_dictionary[f.subtype]

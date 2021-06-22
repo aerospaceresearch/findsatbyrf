@@ -36,5 +36,6 @@ class TLEprediction:
         self.time_of_record = time_of_record.replace(tzinfo=utc)
         self.signal_time = [time_scale.utc(self.time_of_record + datetime.timedelta(seconds=step*step_timelength)) for step in range(total_step)]
 
-    def Doppler_prediction(self, center_freq):
-        return np.array([doppler_calculator(center_freq, self.station, self.satellite, self.signal_time[step]) for step in range(len(self.signal_time))])
+    def Doppler_prediction(self, center_freq, step):
+        return doppler_calculator(center_freq, self.station, self.satellite, self.signal_time[step])
+

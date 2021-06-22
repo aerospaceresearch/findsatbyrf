@@ -4,7 +4,9 @@ import signal_io as io
 import tle_processing as tle
 import multiprocessing
 import glob
-from datetime import datetime
+import matplotlib.pyplot as plt
+import soundfile as sf
+from datetime import datetime, timedelta
 
 class signal:
     def __init__(self, name='Unknown',
@@ -25,9 +27,8 @@ class signal:
         self.full_freq_domain = []
         self.avg_freq_domain = []
         self.channel_bandwidths = []
-        self.data_path = data_path
-        self.time_data = multiprocessing.Queue()
-        self.freq_data = multiprocessing.Queue()
+        self.channel_freq_domain_len = []
+        self.data_path = io.PATH + data_path
         self.channel_count = 0
 
         if expected_frequency == None:
@@ -72,7 +73,7 @@ class signal:
             self.time_of_record = datetime.strptime(time_of_record, "%Y-%m-%d %H:%M:%S")
 
     def read_info_from_wav(self, time_begin=0, time_end=None):
-        self.wav_path = glob.glob(io.PATH+self.data_path+'/*.wav')[0]
+        self.wav_path = glob.glob(self.data_path+'/*.wav')[0]
         self.fs, self.step_framelength, self.max_step, self.time_begin, self.time_end = io.read_info_from_wav(self.wav_path, self.step_timelength, time_begin, time_end)
         self.full_freq = np.fft.fftfreq(int(self.fs * self.step_timelength), 1/(self.fs))
         self.total_step = int((self.time_end-self.time_begin)/self.step_timelength)
@@ -89,39 +90,70 @@ class signal:
         self.bandwidth_indices.append(bandwidth_index)
         self.full_freq_domain.append(self.full_freq[bandwidth_index])
         self.avg_freq_domain.append(tools.avg_binning(self.full_freq[bandwidth_index], self.resolution))
+        self.channel_freq_domain_len.append(len(bandwidth_index))
 
-    def find_centroids(self):
-        while True:
-            centroids = []
-            channel_kernels = []
-            queue_output = self.time_data.get()
-            if queue_output == None:
-                self.time_data.put(None)
-                break
-            step, local_signal = queue_output
-            #local_signal *= np.hanning(self.step_framelength)
-            raw_kernel = np.abs(np.fft.fft(local_signal))
-            for channel in range(self.channel_count):
-                channel_kernel = 20 * np.log10(raw_kernel[self.bandwidth_indices[channel]])
-                safety_factor = 0
-                avg_mag = tools.avg_binning(channel_kernel, self.resolution)   
-                # if int(step * self.step_timelength) % 10 == 0:
-                noise_offset = tools.calculate_offset(avg_mag)   
-                avg_mag += noise_offset + safety_factor
-                filtered_mag = np.clip(avg_mag, a_min=0., a_max=None)
-                tools.channel_filter(filtered_mag, self.resolution, pass_step_width = int(self.pass_bandwidth / self.bandWidth * self.resolution))
-                centroid = tools.centroid(self.avg_freq_domain[channel], filtered_mag)
-                centroids.append(centroid)
-                # channel_kernels.append(channel_kernel)
-                channel_kernels.append(filtered_mag)
-            self.freq_data.put((step, centroids, channel_kernels))
-            # print(channel_kernels)
+    def initializing(self):
+        self.time_data = np.zeros((self.step_framelength))                                                #time domain at each step
+        self.freq_data = np.empty((channel_count, len(max(self.bandwidth_indices, key=len))))            #frequency domain at each step for channel_count channels.
+        self.centroids = np.empty((channel_count))
+
+    def draw_output(self):
+        time_data = np.zeros((self.step_framelength))                                                #time domain at each step
+        # freq_data = np.empty((channel_count, len(max(self.bandwidth_indices, key=len))))            #frequency domain at each step for channel_count channels.
+        raw_freq_kernel = np.zeros((self.step_framelength))
+        centroids = np.empty((self.channel_count))
+        frame_begin = int(self.time_begin*self.fs)
+        frame_end = frame_begin + int( int((self.time_end - self.time_begin) / self.step_timelength) * self.step_timelength * self.fs)
+
+        scale = 1e-3                                    #Transform Hz to kHz
+        fig, axs = plt.subplots(nrows = self.channel_count, figsize=(10,2+1.8*self.channel_count))
+        if self.channel_count == 1:
+            axs = [axs]
+        times = [(self.time_of_record + timedelta(seconds=step*self.step_timelength)).strftime('%H:%M:%S') for step in range(0, self.total_step+1, int(self.total_step/10))]
+        TLE = tle.TLEprediction(self.data_path, self.time_of_record, self.total_step, self.step_timelength)
         
-        self.freq_data.put('END')
 
-    def Doppler_freqs_from_TLE(self, channel):
-        freqs_from_TLE = tle.TLEprediction(self.data_path, self.time_of_record, self.total_step, self.step_timelength)
-        return freqs_from_TLE.satellite.name, freqs_from_TLE.station_name, freqs_from_TLE.Doppler_prediction(self.channel_frequencies[channel])
+        for channel in range(self.channel_count):
+            axs[channel].set_yticks(range(0,self.total_step, int(self.total_step/10)))
+            axs[channel].set_yticklabels(times)
+            axs[channel].grid()
+            axs[channel].ticklabel_format(axis='x', useOffset=False)
+            plot_area = int(self.channel_bandwidths[channel] / 6)
+            plot_tick = int(plot_area / 4)
+            axs[channel].set_xlim([(self.channel_frequencies[channel]-plot_area)*scale, (self.channel_frequencies[channel]+plot_area)*scale])
+            axs[channel].set_xticks(np.around(np.arange(self.channel_frequencies[channel]-plot_area, self.channel_frequencies[channel]+plot_area+plot_tick, plot_tick)*scale,decimals=1))
+            axs[channel].set_ylabel("Time in UTC")
+        plt.suptitle(f"Centroid positions: Red = calculated from wav, Green = predicted from TLE\n{self.name} signal recorded at {TLE.station_name} station on {self.time_of_record.strftime('%Y-%m-%d')}")
+        axs[-1].set_xlabel("Frequency [kHz]")
+
+        with sf.SoundFile(self.wav_path, 'r') as f:
+            f.seek(frame_begin)
+            step = -1
+            while f.tell() < frame_end:
+                step += 1
+                print(f"Processing data... {step/self.total_step*100:.2f}%", end='\r')
+                raw_time_data = f.read(frames=self.step_framelength)
+                time_data = raw_time_data[:,0] + 1j * raw_time_data[:,1]
+                #local_signal *= np.hanning(self.step_framelength)
+                raw_freq_kernel = np.abs(np.fft.fft(time_data))
+                for channel in range(self.channel_count):
+                    channel_kernel = 20 * np.log10(raw_freq_kernel[self.bandwidth_indices[channel]])
+                    safety_factor = 0
+                    avg_mag = tools.avg_binning(channel_kernel, self.resolution)   
+                    noise_offset = tools.calculate_offset(avg_mag)   
+                    avg_mag += noise_offset + safety_factor
+                    filtered_mag = np.clip(avg_mag, a_min=0., a_max=None)
+                    tools.channel_filter(filtered_mag, self.resolution, pass_step_width = int(self.pass_bandwidth / self.bandWidth * self.resolution))
+                    centroid = tools.centroid(self.avg_freq_domain[channel], filtered_mag)
+                    if centroid != None:
+                        centroid = scale * (centroid + self.center_frequency)
+
+                    prediction_from_TLE = scale * TLE.Doppler_prediction(self.channel_frequencies[channel], step)
+                    axs[channel].plot(prediction_from_TLE, step, '.', color='green', markersize = 0.2)
+                    if centroid != None:
+                        axs[channel].plot(centroid, step, '.', color='red', markersize = 0.2)
+            plt.savefig(f"{io.PATH}/data/Waterfall_{self.name}_{self.time_of_record.strftime('%Y-%m-%d')}.png", dpi=300)
+            print(f"\n... Done")
 
     def plot(self):
         io.waterfall(self)
