@@ -28,6 +28,7 @@ class signal:
         self.avg_freq_domain = []
         self.channel_bandwidths = []
         self.channel_freq_domain_len = []
+        self.resolutions = []
         self.data_path = io.PATH + data_path
         self.channel_count = 0
 
@@ -41,16 +42,15 @@ class signal:
         else:
             self.resolution = resolution
 
-        if bandWidth == None:
-            self.bandWidth = 30e3
-        else:
-            self.bandWidth = bandWidth
+        # if bandWidth == None:
+            # self.bandWidth = 60e3
+        # else:
+            # self.bandWidth = bandWidth
 
-        self.sensitivity = int(self.bandWidth/self.resolution)
+        # self.sensitivity = int(self.bandWidth/self.resolution)
 
         if sensitivity != None:
             self.sensitivity = sensitivity
-            self.resolution = int(self.bandWidth/sensitivity)
 
         if center_frequency == None:
             self.center_frequency = 0
@@ -86,10 +86,11 @@ class signal:
         self.channel_frequencies.append(channel_frequency)
         self.channel_count += 1
         self.channel_bandwidths.append(channel_bandwidth)
+        self.resolutions.append(int(channel_bandwidth/self.sensitivity))
         bandwidth_index = np.where(np.logical_and(self.full_freq > channel_frequency - self.center_frequency - channel_bandwidth/2, self.full_freq < channel_frequency - self.center_frequency + channel_bandwidth/2))
         self.bandwidth_indices.append(bandwidth_index)
         self.full_freq_domain.append(self.full_freq[bandwidth_index])
-        self.avg_freq_domain.append(tools.avg_binning(self.full_freq[bandwidth_index], self.resolution))
+        self.avg_freq_domain.append(tools.avg_binning(self.full_freq[bandwidth_index], int(channel_bandwidth/self.sensitivity)))
         self.channel_freq_domain_len.append(len(bandwidth_index))
 
     def initializing(self):
@@ -139,11 +140,11 @@ class signal:
                 for channel in range(self.channel_count):
                     channel_kernel = 20 * np.log10(raw_freq_kernel[self.bandwidth_indices[channel]])
                     safety_factor = 0
-                    avg_mag = tools.avg_binning(channel_kernel, self.resolution)   
+                    avg_mag = tools.avg_binning(channel_kernel, self.resolutions[channel])   
                     noise_offset = tools.calculate_offset(avg_mag)   
                     avg_mag += noise_offset + safety_factor
                     filtered_mag = np.clip(avg_mag, a_min=0., a_max=None)
-                    tools.channel_filter(filtered_mag, self.resolution, pass_step_width = int(self.pass_bandwidth / self.bandWidth * self.resolution))
+                    tools.channel_filter(filtered_mag, self.resolutions[channel], pass_step_width = int(self.pass_bandwidth / self.channel_bandwidths[channel] * self.resolutions[channel]))
                     centroid = tools.centroid(self.avg_freq_domain[channel], filtered_mag)
                     if centroid != None:
                         centroid = scale * (centroid + self.center_frequency)
@@ -153,7 +154,7 @@ class signal:
                     if centroid != None:
                         axs[channel].plot(centroid, step, '.', color='red', markersize = 0.2)
             plt.savefig(f"{io.PATH}/data/Waterfall_{self.name}_{self.time_of_record.strftime('%Y-%m-%d')}.png", dpi=300)
-            print(f"\n... Done")
+            print(f"Processing data... 100.00%", end='\r\n')
 
     def plot(self):
         io.waterfall(self)
