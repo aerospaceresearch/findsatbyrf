@@ -1,16 +1,16 @@
 from scipy.io import wavfile
 import matplotlib.pyplot as plt
 import os
+import csv
 import numpy as np
 import datetime
-import soundfile as sf
+import soundfile
+import tle_processing as tle
 from datetime import datetime, timedelta
 PATH=os.path.dirname(__file__)+'/'
 
-#INPUT
-
 def read_info_from_wav(wav_path, step_timelength, time_begin, time_end):
-    with sf.SoundFile(wav_path, 'r') as f:
+    with soundfile.SoundFile(wav_path, 'r') as f:
         fs= f.samplerate
         step_framelength = int(step_timelength * fs)
         max_step = int(f.frames / step_framelength) 
@@ -22,182 +22,79 @@ def read_info_from_wav(wav_path, step_timelength, time_begin, time_end):
     return fs, step_framelength, max_step, time_begin, time_end
 
 
-def multiprocess_read_data_from_wav(wav_path, fs, step_timelength, step_framelength, time_begin, time_end, time_data):
-    with sf.SoundFile(wav_path, 'r') as f:
-        # bitrate_dictionary = {'PCM_U8':255, 'PCM_S8':127, 'PCM_16': 32767}
-        # normalize_factor = bitrate_dictionary[f.subtype]
-        frame_begin = int(time_begin*fs)
-        frame_end = frame_begin + int( int((time_end - time_begin) / step_timelength) * step_timelength * fs)
-        f.seek(frame_begin)
-        step = -1
-        while f.tell() < frame_end:
-            step += 1
-            raw_time_data = f.read(frames=step_framelength)
-            time_data.put((step, raw_time_data[:,0] + 1j * raw_time_data[:,1]))
-        time_data.put(None)
+class WavReader:
+    def __init__(self, signal_object):
+        frame_begin = int(signal_object.time_begin * signal_object.fs)
+        self.step_framelength = signal_object.step_framelength
+        self.reader = soundfile.SoundFile(signal_object.wav_path, 'r')
+        self.reader.seek(frame_begin)
+    def read_current_step(self):
+        raw_time_data = self.reader.read(frames=self.step_framelength)
+        return raw_time_data[:,0] + 1j * raw_time_data[:,1]
+    def close(self):
+        self.reader.close()
 
-#OUTPUT
-def waterfall(signal, outputType='png'):
-    """our main method of visualization"""
-    # channel = 0
-    # fig, axs = plt.subplot(signal.channel_count)
-    # fig.suptitle(plt.title(f"Waterfall with Centroid positions\n{signal.name} signal recorded at {station_name} station on {signal.time_of_record.strftime('%Y-%m-%d')}")
-    scale = 1e-3                                    #Transform Hz to kHz
-    centroids = np.empty((signal.channel_count, signal.total_step))
-    mags = [np.empty((signal.total_step, len(signal.avg_freq_domain[channel]))) for channel in range(signal.channel_count)]
-    times = [(signal.time_of_record + timedelta(seconds=step*signal.step_timelength)).strftime('%H:%M:%S') for step in range(0, signal.total_step+1, int(signal.total_step/10))]
+class CsvWriter:
+    def __init__(self, signal_object):
+        self.file = open(os.path.normpath(signal_object.data_path+f"{signal_object.name}_{signal_object.time_of_record.strftime('%Y-%m-%d')}.csv"), 'w')
+        self.reader = csv.writer(self.file)
+        header = [f"date={signal_object.time_of_record.strftime('%Y-%m-%d')}"]
+        for channel in range(signal_object.channel_count):
+            header.append(f"CH_{channel}[Hz]={signal_object.channel_frequencies[channel]}")
+        self.reader.writerow(header) 
+        self.channel_count = signal_object.channel_count
+        self.time_labels = [(signal_object.time_of_record + timedelta(seconds=step*signal_object.step_timelength)).strftime('%H:%M:%S') for step in range(0, signal_object.total_step)]
+    def save_step(self, step, centroids):
+        data = [self.time_labels[step]]
+        for channel in range(self.channel_count):
+            data.append(centroids[channel])
+        self.reader.writerow(data)
+    def export(self):
+        self.file.close()
 
-    for i in range(signal.total_step):
-        print(f"Analyzing input... {i/signal.total_step*100:.2f}%", end='\r')
-        step, centroids_at_a_step, mags_at_a_step = signal.freq_data.get()
-        centroids[:, step] = centroids_at_a_step
-
-        for channel in range(signal.channel_count):
-            mags[channel][step] = mags_at_a_step[channel]
-            if centroids[channel, step] == None:
-                centroids[channel, step] = None
-            else:
-                centroids[channel, step] = (centroids[channel, step] + signal.center_frequency) * scale
-    print("Analyzing input... Done    ")
-
-    for channel in range(signal.channel_count):
-        print(f"Plotting waterfall for channel {channel}... ", end='\r')
-        plt.figure(figsize=(10,5))
-        f = (signal.avg_freq_domain[channel] + signal.center_frequency) * scale
-        X, Y = np.meshgrid(f, range(signal.total_step))
-        plt.pcolormesh(X, Y, mags[channel], cmap='Blues', shading='auto', zorder=0)
-        plt.yticks(range(0,signal.total_step, int(signal.total_step/10)), times)
-        satellite_name, station_name, prediction_from_TLE = signal.Doppler_freqs_from_TLE(channel)
-        prediction_from_TLE *= scale
-        plt.plot(prediction_from_TLE, range(signal.total_step), '.', color='green', label=f'Prediction from TLE of {satellite_name}', markersize=5, zorder=1)
-        plt.plot(centroids[channel], range(signal.total_step), '.', color='red', label='Calculation from wave file', markersize=5, zorder=1 )
-        plt.grid()
-        plt.ticklabel_format(axis='x', useOffset=False)
-        plot_area = int(signal.channel_bandwidths[channel] / 2)
-        plot_tick = int(plot_area / 4)
-        plt.xlim([(signal.channel_frequencies[channel]-plot_area)*scale, (signal.channel_frequencies[channel]+plot_area)*scale])
-        plt.xticks(np.around(np.arange(signal.channel_frequencies[channel]-plot_area, signal.channel_frequencies[channel]+plot_area+plot_tick, plot_tick)*scale,decimals=1))
-        plt.xlabel("Frequency [kHz]")
-        plt.ylabel("Time in UTC") 
-        plt.legend()
-        plt.title(f"Waterfall with Centroid positions\nChannel {channel} at {signal.channel_frequencies[channel]*scale} kHz of {signal.name} signal recorded at {station_name} station on {signal.time_of_record.strftime('%Y-%m-%d')}")
-        plt.savefig(f'{PATH}/data/Waterfall_{signal.name}_channel{channel}.{outputType}', dpi=300)
-        print(f"Plotting waterfall for channel {channel}... Done")
-
-def calculated_vs_predicted(signal, outputType='png'):
-    """a more simple version of waterfall"""
-    plt.figure(figsize=(10,5))
-    scale = 1e-3                        #Transform Hz to kHz
-    prediction_from_TLE = signal.Doppler_freqs_from_TLE()*scale
-    plt.plot(prediction_from_TLE, range(signal.total_step), '.', color='blue', markersize=1)
-    centroids = np.empty(signal.total_step)
-    times = [(signal.time_of_record + timedelta(seconds=step*signal.step_timelength)).strftime('%H:%M:%S') for step in range(0, signal.total_step+1, int(signal.total_step/10))]
-
-    for i in range(signal.total_step):
-        print(f"{int(i/signal.total_step*100)}%", end='\r')
-        step, centroid, _ = signal.freq_data.get()
-        if centroid == None:
-            centroids[step] = None
+class Waterfall:
+    def __init__(self, signal_object, frequency_unit='kHz'):
+        if frequency_unit.lower() == 'hz':
+            self.scale = 1
+        elif frequency_unit.lower() == 'mhz':
+            self.scale = 1e-6
         else:
-            centroids[step] = (centroid + signal.center_frequency) * scale
-    
-    print("Plotting waterfall")
-    plt.plot(centroids, range(signal.total_step), 'r.', markersize=1 )
-    plt.yticks(range(0,signal.total_step+1, int(signal.total_step/10)), times)
+            self.scale = 1e-3                                    #Transform Hz to kHz
+            frequency_unit = 'kHz'
 
-    plt.grid()
-    plt.ticklabel_format(axis='x', useOffset=False)
-    plot_area = int(signal.bandWidth / 6)
-    plot_tick = int(plot_area / 4)
-    plt.xlim([(signal.expected_frequency-plot_area-plot_tick)*scale, (signal.expected_frequency+plot_area+plot_tick)*scale])
-    plt.xticks(np.around(np.arange(signal.expected_frequency-plot_area-plot_tick, signal.expected_frequency+plot_area+2*plot_tick, plot_tick)*scale,decimals=1))
-    plt.xlabel("Centroid position [kHz]")
-    plt.ylabel("Time")
-    plt.title(f"{signal.name}: The shift of centroid by time")
-    plt.savefig(f'{PATH}/data/Center_position_{signal.name}.{outputType}', dpi=300)
+        self.fig, self.axs = plt.subplots(nrows = signal_object.channel_count, figsize=(10,2+1.8*signal_object.channel_count))
+        if signal_object.channel_count == 1:
+            self.axs = [self.axs]
+        time_labels = [(signal_object.time_of_record + timedelta(seconds=step*signal_object.step_timelength)).strftime('%H:%M:%S') for step in range(0, signal_object.total_step+1, int(signal_object.total_step/10))]
+        for channel in range(signal_object.channel_count):
+            self.axs[channel].set_yticks(range(0,signal_object.total_step, int(signal_object.total_step/10)))
+            self.axs[channel].set_yticklabels(time_labels)
+            self.axs[channel].grid()
+            self.axs[channel].ticklabel_format(axis='x', useOffset=False)
+            plot_area = int(signal_object.channel_bandwidths[channel] / 6)
+            plot_tick = int(plot_area / 4)
+            self.axs[channel].set_xlim([(signal_object.channel_frequencies[channel]-plot_area)*self.scale, (signal_object.channel_frequencies[channel]+plot_area)*self.scale])
+            self.axs[channel].set_xticks(np.around(np.arange(signal_object.channel_frequencies[channel]-plot_area, signal_object.channel_frequencies[channel]+plot_area+plot_tick, plot_tick)*self.scale,decimals=1))
+            self.axs[channel].set_ylabel("Time in UTC")
 
-def plot(signal, outputType = None):
-    """plot the spectral density by time, not important"""
-    plt.figure(figsize=(10,5))
-    scale = 1e-3 #convert Hz to kHz
-    f = signal.simplifiedFreq * scale
-    centroids = np.empty(signal.total_step)
+        self.channel_count = signal_object.channel_count
+        self.center_frequency = signal_object.center_frequency
+        self.channel_frequencies = signal_object.channel_frequencies
+        self.TLE = tle.TLEprediction(signal_object.data_path, signal_object.time_of_record, signal_object.total_step, signal_object.step_timelength)
+        self.fig.suptitle(f"Centroid positions: RED = calculated from wav, BLUE = predicted from TLE\n{signal_object.name} signal recorded at {self.TLE.station_name} station on {signal_object.time_of_record.strftime('%Y-%m-%d')}")
+        self.axs[-1].set_xlabel(f"Frequency [{frequency_unit}]")
+        self.save_path = os.path.normpath(signal_object.data_path+f"{signal_object.name}_{signal_object.time_of_record.strftime('%Y-%m-%d')}")
 
-    while True:
-        queue_output = signal.freq_data.get()
-        if queue_output == 'END':
-            signal.freq_data.put('END')
-            break
-        
-        step, centroid, mag = queue_output
-        print(f"\t{step/signal.total_step*100:.2f} %", end="\r")
-        plt.plot(f+signal.center_frequency*scale, mag, '.', markersize=1.)
-        
-        if centroid != None:
-            centroid = (centroid + signal.center_frequency)*scale
-            plt.axvline(x=centroid, color='red', markersize=0.1, label=f'Centroid={centroid:.1f}kHz')
+    def save_step(self, step, centroids, show_prediction=True):
+        for channel in range(self.channel_count):
+            if show_prediction:
+                prediction_from_TLE = self.scale * self.TLE.Doppler_prediction(self.channel_frequencies[channel], step)
+                self.axs[channel].plot(prediction_from_TLE, step, '.', color='blue', markersize = 0.5)
+            if centroids[channel] != None:
+                centroid = self.scale * (centroids[channel] + self.center_frequency)
+                self.axs[channel].plot(centroid, step, '.', color='red', markersize = 0.5)
 
-        centroids[step] = centroid
-        plt.ticklabel_format(useOffset=False)
-        plt.ylim([-20,40])
-        plt.yticks(np.arange(40,-30,-10))
-        plt.xticks(np.arange(signal.expected_frequency-signal.bandWidth/2, signal.expected_frequency+signal.bandWidth/2+signal.bandWidth/10, signal.bandWidth/10)*scale)
+    def export(self, format='png'):
+        self.fig.savefig(f"{self.save_path}.{format}", dpi=300)
+        plt.close(self.fig)
 
-        plt.title(f'{signal.name}: Frequency domain at step {step:03d} ({datetime.timedelta(seconds=int(step*signal.step_timelength))}) with each step = {signal.step_timelength}s')
-        plt.xlabel(f'Frequency (kHz)')
-        plt.ylabel('Amplitude (dB)')
-        plt.grid()
-        plt.savefig(f'{PATH}/outputs/timeseries/{step:04d}.png', dpi=100)
-        plt.clf()
-
-def double_plot(signal, outputType = None):
-    """plot spectral power density with centroid positions, not important"""
-    fig, (ax1, ax2) = plt.subplots(2, figsize=(8,8))
-    fig.tight_layout(pad=2.)
-    scale = 1e-3 #convert Hz to kHz
-    f = signal.simplifiedFreq * scale
-    
-    centroids = np.empty(signal.total_step)
-
-    ax2.ticklabel_format(useOffset=False)
-    ax2.grid()
-    ax2.set_ylim([0,signal.total_step+1])
-    # ax2.set_xlim([(signal.expected_frequency-5e3-1e3)*scale, (signal.expected_frequency+5e3+1e3)*scale])
-    ax2.set_xlabel("Frequency (kHz)")
-    ax2.set_ylabel("Time step")
-    ax2.set_title(f"{signal.name}: Centroid position")
-    # ax2.set_xticks(np.arange(signal.expected_frequency-5e3, signal.expected_frequency+5e3+1e3, 1e3)*scale)
-
-    plot_area = int(signal.bandWidth / 2)
-    plot_tick = int(plot_area / 4)
-    ax2.set_xlim([(signal.expected_frequency-plot_area)*scale, (signal.expected_frequency+plot_area)*scale])
-    ax2.set_xticks(np.around(np.arange(signal.expected_frequency-plot_area, signal.expected_frequency+plot_area+plot_tick, plot_tick)*scale,decimals=1))
-
-    for i in range(signal.total_step):
-        print(f"Analyzing input... {i/signal.total_step*100:.2f}%", end='\r')
-        step, centroid, mag = signal.freq_data.get()
-        ax1.plot(f+signal.center_frequency*scale, mag, '.', markersize=3.)        
-        if centroid != None:
-            centroid = (centroid + signal.center_frequency)*scale
-            ax1.axvline(x=centroid, color='red', markersize=0.1)
-            ax2.plot(centroid, step, 'r.', markersize=3.)
-        ax1.ticklabel_format(useOffset=False)
-        ax1.grid()
-        ax1.set_ylim([-20,40])
-        ax1.set_yticks(np.arange(40,-30,-10))
-        ax1.set_xlim([(signal.expected_frequency-plot_area)*scale, (signal.expected_frequency+plot_area)*scale])
-        ax1.set_xticks(np.around(np.arange(signal.expected_frequency-plot_area, signal.expected_frequency+plot_area+plot_tick, plot_tick)*scale,decimals=1))
-        # ax1.set_xticks(np.arange(signal.expected_frequency-signal.bandWidth/2, signal.expected_frequency+signal.bandWidth/2+signal.bandWidth/10, signal.bandWidth/10)*scale)
-        ax1.set_title(f'{signal.name}: Power spectral density at step {step:04d}')# ({datetime.timedelta(seconds=int(step*signal.step_timelength))}) with each step = {signal.step_timelength}s')
-        ax1.set_ylabel('Amplitude (dB)')
-        fig.savefig(f'{signal.data_path}/timeseries/{step:04d}.png', dpi=300)
-        ax1.clear()
-    print("Finished plotting")
-    if outputType == None:
-        outputType = 'mp4'
-    os.system(f"ffmpeg -y -framerate {int(1/signal.step_timelength)} -i {PATH+signal.data_path}/timeseries/%04d.png -i {PATH}plot_palette.png -lavfi paletteuse {signal.data_path}/{signal.name}.{outputType}")
-
-    # if os.name == 'nt':
-        # os.system(f"del {os.path.normpath(signal.data_path)}\timeseries\\*.png)")
-    # else:
-        # os.system(f"rm {signal.data_path}/timeseries/*.png")
