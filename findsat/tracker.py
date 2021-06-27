@@ -74,13 +74,13 @@ class Signal:
         self.channel_freq_domain_len.append(len(bandwidth_index))
 
     def process(self):
-        centroids = np.empty((self.channel_count))
+        self.centroids = np.empty((self.total_step, self.channel_count))
         reader = io.WavReader(self)
         waterfall = io.Waterfall(self)
         csv = io.CsvWriter(self)
         for step in range(self.total_step):
             print(f"Processing data... {step/self.total_step*100:.2f}%", end='\r')
-            time_data = reader.read_current_step()              #* np.hanning(self.step_framelength)
+            time_data = reader.read_current_step()              # * np.hanning(self.step_framelength)
             raw_freq_kernel = np.abs(np.fft.fft(time_data))
             for channel in range(self.channel_count):
                 channel_kernel = 20 * np.log10(raw_freq_kernel[self.bandwidth_indices[channel]])
@@ -91,13 +91,15 @@ class Signal:
                 filtered_mag = np.clip(avg_mag, a_min=0., a_max=None)
                 tools.channel_filter(filtered_mag, self.resolutions[channel], pass_step_width = int(self.pass_bandwidth / self.channel_bandwidths[channel] * self.resolutions[channel]))
                 centroid = tools.centroid(self.avg_freq_domain[channel], filtered_mag)
-                centroids[channel] = centroid
-            waterfall.save_step(step, centroids)
-            csv.save_step(step, centroids)
+                self.centroids[step, channel] = centroid
+            waterfall.save_step(step, self.centroids[step])
+            csv.save_step(step, self.centroids[step])
         reader.close()
         waterfall.export()
         csv.export()
         print(f"Processing data... 100.00%", end='\r\n')
+
+
 
 
 

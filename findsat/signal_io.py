@@ -5,7 +5,7 @@ import csv
 import numpy as np
 import datetime
 import soundfile
-import tle_processing as tle
+import tools
 from datetime import datetime, timedelta
 PATH=os.path.dirname(__file__)+'/'
 
@@ -21,7 +21,6 @@ def read_info_from_wav(wav_path, step_timelength, time_begin, time_end):
             time_end = f.frames/fs
     return fs, step_framelength, max_step, time_begin, time_end
 
-
 class WavReader:
     def __init__(self, signal_object):
         frame_begin = int(signal_object.time_begin * signal_object.fs)
@@ -36,7 +35,7 @@ class WavReader:
 
 class CsvWriter:
     def __init__(self, signal_object):
-        self.file = open(os.path.normpath(signal_object.data_path+f"{signal_object.name}_{signal_object.time_of_record.strftime('%Y-%m-%d')}.csv"), 'w')
+        self.file = open(os.path.normpath(signal_object.data_path+f"{signal_object.name}_{signal_object.time_of_record.strftime('%Y-%m-%d')}.csv"), 'w', newline='')
         self.reader = csv.writer(self.file)
         header = [f"date={signal_object.time_of_record.strftime('%Y-%m-%d')}"]
         for channel in range(signal_object.channel_count):
@@ -80,7 +79,7 @@ class Waterfall:
         self.channel_count = signal_object.channel_count
         self.center_frequency = signal_object.center_frequency
         self.channel_frequencies = signal_object.channel_frequencies
-        self.TLE = tle.TLEprediction(signal_object.data_path, signal_object.time_of_record, signal_object.total_step, signal_object.step_timelength)
+        self.TLE = tools.TLE(signal_object) #.data_path, signal_object.time_of_record, signal_object.total_step, signal_object.step_timelength)
         self.fig.suptitle(f"Centroid positions: RED = calculated from wav, BLUE = predicted from TLE\n{signal_object.name} signal recorded at {self.TLE.station_name} station on {signal_object.time_of_record.strftime('%Y-%m-%d')}")
         self.axs[-1].set_xlabel(f"Frequency [{frequency_unit}]")
         self.save_path = os.path.normpath(signal_object.data_path+f"{signal_object.name}_{signal_object.time_of_record.strftime('%Y-%m-%d')}")
@@ -88,7 +87,7 @@ class Waterfall:
     def save_step(self, step, centroids, show_prediction=True):
         for channel in range(self.channel_count):
             if show_prediction:
-                prediction_from_TLE = self.scale * self.TLE.Doppler_prediction(self.channel_frequencies[channel], step)
+                prediction_from_TLE = self.scale * self.TLE.Doppler_prediction(channel, step)
                 self.axs[channel].plot(prediction_from_TLE, step, '.', color='blue', markersize = 0.5)
             if centroids[channel] != None:
                 centroid = self.scale * (centroids[channel] + self.center_frequency)
