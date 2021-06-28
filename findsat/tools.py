@@ -1,15 +1,17 @@
 import numpy as np
+from numpy.core.numeric import NaN
 from skyfield.api import load, wgs84, utc
 from scipy.constants import c
 import datetime
 import os
+from scipy import signal 
 
 def centroid(freq, mag):
     """Finding the center, or spectral centroid, of the signal.
     """   
     mag_sum = np.sum(mag)
     if mag_sum == 0:
-        return None
+        return NaN
     else:
         return  np.sum(freq * mag) / mag_sum
 
@@ -41,6 +43,10 @@ def calculate_offset(input_mag):
         std[i] = np.std(value)
     return - (np.min(mag) + 4*np.min(std))
 
+def lowpass_filter(centroids):
+    sos = signal.butter(4, 0.02, output='sos')
+    return signal.sosfiltfilt(sos, centroids)
+
 class TLE:
     def __init__(self, signal_object):#data_path, time_of_record, total_step, step_timelength
         time_scale = load.timescale()
@@ -61,17 +67,20 @@ class TLE:
         self.signal_time = [time_scale.utc(self.time_of_record + datetime.timedelta(seconds=step*signal_object.step_timelength)) for step in range(signal_object.total_step)]
         self.channel_frequencies = signal_object.channel_frequencies
 
-    def Doppler_prediction(self, channel, step):
+    def Doppler_prediction(self, channel, steps):
         """
         function to calculated Doppler shift frequency from skyfield objects, ideas from https://en.wikipedia.org/wiki/Relativistic_Doppler_effect#Motion_in_an_arbitrary_direction
         """
+        Doppler_freqs = np.empty_like(steps)
         relative = self.station - self.satellite
-        r = relative.at(self.signal_time[step]).position.m
-        v = relative.at(self.signal_time[step]).velocity.m_per_s
-        beta = np.linalg.norm(v) / c
-        gamma = 1 / np.sqrt(1 - beta**2)
-        cos_theta = np.dot(r, v) / (np.linalg.norm(r) * np.linalg.norm(v))
-        return self.channel_frequencies[channel] / (gamma * (1 + beta * cos_theta))
+        for step in steps:
+            r = relative.at(self.signal_time[step]).position.m
+            v = relative.at(self.signal_time[step]).velocity.m_per_s
+            beta = np.linalg.norm(v) / c
+            gamma = 1 / np.sqrt(1 - beta**2)
+            cos_theta = np.dot(r, v) / (np.linalg.norm(r) * np.linalg.norm(v))
+            Doppler_freqs[step] = self.channel_frequencies[channel] / (gamma * (1 + beta * cos_theta))
+        return Doppler_freqs
 
 
 

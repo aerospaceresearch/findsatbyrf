@@ -1,3 +1,4 @@
+from scipy import signal
 from scipy.io import wavfile
 import matplotlib.pyplot as plt
 import os
@@ -34,20 +35,38 @@ class WavReader:
         self.reader.close()
 
 class CsvWriter:
-    def __init__(self, signal_object):
+    def __init__(self, signal_object, frequency_unit='kHz'):
+        if frequency_unit.lower() == 'hz':
+            self.scale = 1
+        elif frequency_unit.lower() == 'mhz':
+            self.scale = 1e-6
+        else:
+            self.scale = 1e-3                                    #Transform Hz to kHz
+            frequency_unit = 'kHz'
         self.file = open(os.path.normpath(signal_object.data_path+f"{signal_object.name}_{signal_object.time_of_record.strftime('%Y-%m-%d')}.csv"), 'w', newline='')
         self.reader = csv.writer(self.file)
         header = [f"date={signal_object.time_of_record.strftime('%Y-%m-%d')}"]
         for channel in range(signal_object.channel_count):
             header.append(f"CH_{channel}[Hz]={signal_object.channel_frequencies[channel]}")
         self.reader.writerow(header) 
+        self.center_frequency = signal_object.center_frequency
+        self.total_step = signal_object.total_step
         self.channel_count = signal_object.channel_count
         self.time_labels = [(signal_object.time_of_record + timedelta(seconds=step*signal_object.step_timelength)).strftime('%H:%M:%S') for step in range(0, signal_object.total_step)]
+
     def save_step(self, step, centroids):
         data = [self.time_labels[step]]
         for channel in range(self.channel_count):
             data.append(centroids[channel])
         self.reader.writerow(data)
+
+    def save_all(self, centroids):
+        for step in range(self.total_step):
+            data = [self.time_labels[step]]
+            for channel in range(self.channel_count):
+                data.append(self.scale * (centroids[channel, step] + self.center_frequency))
+            self.reader.writerow(data)            
+    
     def export(self):
         self.file.close()
 
@@ -61,12 +80,13 @@ class Waterfall:
             self.scale = 1e-3                                    #Transform Hz to kHz
             frequency_unit = 'kHz'
 
+        self.total_step = signal_object.total_step
         self.fig, self.axs = plt.subplots(nrows = signal_object.channel_count, figsize=(10,2+1.8*signal_object.channel_count))
         if signal_object.channel_count == 1:
             self.axs = [self.axs]
         time_labels = [(signal_object.time_of_record + timedelta(seconds=step*signal_object.step_timelength)).strftime('%H:%M:%S') for step in range(0, signal_object.total_step+1, int(signal_object.total_step/10))]
         for channel in range(signal_object.channel_count):
-            self.axs[channel].set_yticks(range(0,signal_object.total_step, int(signal_object.total_step/10)))
+            self.axs[channel].set_yticks(range(0,self.total_step, int(self.total_step/10)))
             self.axs[channel].set_yticklabels(time_labels)
             self.axs[channel].grid()
             self.axs[channel].ticklabel_format(axis='x', useOffset=False)
@@ -76,6 +96,7 @@ class Waterfall:
             self.axs[channel].set_xticks(np.around(np.arange(signal_object.channel_frequencies[channel]-plot_area, signal_object.channel_frequencies[channel]+plot_area+plot_tick, plot_tick)*self.scale,decimals=1))
             self.axs[channel].set_ylabel("Time in UTC")
 
+        #self.fig.tight_layout()
         self.channel_count = signal_object.channel_count
         self.center_frequency = signal_object.center_frequency
         self.channel_frequencies = signal_object.channel_frequencies
@@ -89,9 +110,15 @@ class Waterfall:
             if show_prediction:
                 prediction_from_TLE = self.scale * self.TLE.Doppler_prediction(channel, step)
                 self.axs[channel].plot(prediction_from_TLE, step, '.', color='blue', markersize = 0.5)
-            if centroids[channel] != None:
-                centroid = self.scale * (centroids[channel] + self.center_frequency)
-                self.axs[channel].plot(centroid, step, '.', color='red', markersize = 0.5)
+            centroid = self.scale * (centroids[channel] + self.center_frequency)
+            self.axs[channel].plot(centroid, step, '.', color='red', markersize = 0.5)
+
+    def save_all(self, centroids, show_prediction=True):
+        for channel in range(self.channel_count):
+            if show_prediction:
+                prediction_from_TLE = self.scale * self.TLE.Doppler_prediction(channel, range(self.total_step))
+                self.axs[channel].plot(prediction_from_TLE, range(self.total_step), '.', color='blue', markersize = 0.5)
+            self.axs[channel].plot(self.scale * (centroids[channel] + self.center_frequency), range(self.total_step), '.', color='red', markersize = 0.5)
 
     def export(self, format='png'):
         self.fig.savefig(f"{self.save_path}.{format}", dpi=300)

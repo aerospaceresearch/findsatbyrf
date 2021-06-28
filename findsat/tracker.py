@@ -73,8 +73,8 @@ class Signal:
         self.avg_freq_domain.append(tools.avg_binning(self.full_freq[bandwidth_index], int(channel_bandwidth/self.sensitivity)))
         self.channel_freq_domain_len.append(len(bandwidth_index))
 
-    def process(self):
-        self.centroids = np.empty((self.total_step, self.channel_count))
+    def process(self, filter=True):
+        self.centroids = np.empty((self.channel_count, self.total_step))
         reader = io.WavReader(self)
         waterfall = io.Waterfall(self)
         csv = io.CsvWriter(self)
@@ -91,12 +91,15 @@ class Signal:
                 filtered_mag = np.clip(avg_mag, a_min=0., a_max=None)
                 tools.channel_filter(filtered_mag, self.resolutions[channel], pass_step_width = int(self.pass_bandwidth / self.channel_bandwidths[channel] * self.resolutions[channel]))
                 centroid = tools.centroid(self.avg_freq_domain[channel], filtered_mag)
-                self.centroids[step, channel] = centroid
-            waterfall.save_step(step, self.centroids[step])
-            csv.save_step(step, self.centroids[step])
+                self.centroids[channel, step] = centroid
+        if filter:
+            for channel in range(self.channel_count):
+                self.centroids[channel] = tools.lowpass_filter(self.centroids[channel])
+        waterfall.save_all(self.centroids)
+        csv.save_all(self.centroids)
         reader.close()
         waterfall.export()
-        csv.export()
+        #csv.export()
         print(f"Processing data... 100.00%", end='\r\n')
 
 

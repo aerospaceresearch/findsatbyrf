@@ -12,12 +12,12 @@ def main():
                             pass_bandwidth=5e3,                     #minimum width of a peak in waterfall to not be considered a noise
                             time_of_record = '2021-06-04 20:17:05') #time in UTC
     
-    signal.read_info_from_wav(time_end=60)          #unit of second, set time_end to None to analyze the entire wave file
+    signal.read_info_from_wav(time_end=None)          #unit of second, set time_end to None to analyze the entire wave file
     signal.add_channel(channel_frequency=137.9125e6, channel_bandwidth=60e3)
     print("Done")
 
     start_time = datetime.now()
-    signal.process()
+    signal.process(filter=True)
     print(f"Finished in {datetime.now() - start_time}")        
 
 if __name__ == '__main__':
