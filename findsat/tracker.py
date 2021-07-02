@@ -73,28 +73,32 @@ class Signal:
         self.avg_freq_domain.append(tools.avg_binning(self.full_freq[bandwidth_index], int(channel_bandwidth/self.sensitivity)))
         self.channel_freq_domain_len.append(len(bandwidth_index))
 
-    def process(self, filter=True):
+    def process(self, filter=True, safety_factor = 0):
         self.centroids = np.empty((self.channel_count, self.total_step))
         reader = io.WavReader(self)
         waterfall = io.Waterfall(self)
-        csv = io.CsvWriter(self)
+        csv = io.Csv(self)
         for step in range(self.total_step):
             print(f"Processing data... {step/self.total_step*100:.2f}%", end='\r')
             time_data = reader.read_current_step()              # * np.hanning(self.step_framelength)
             raw_freq_kernel = np.abs(np.fft.fft(time_data))
             for channel in range(self.channel_count):
                 channel_kernel = 20 * np.log10(raw_freq_kernel[self.bandwidth_indices[channel]])
-                safety_factor = 0
                 avg_mag = tools.avg_binning(channel_kernel, self.resolutions[channel])   
                 noise_offset = tools.calculate_offset(avg_mag)   
-                avg_mag += noise_offset + safety_factor
+                avg_mag += noise_offset
+                if safety_factor != 0:
+                    avg_mag -= np.max(avg_mag) * safety_factor
                 filtered_mag = np.clip(avg_mag, a_min=0., a_max=None)
                 tools.channel_filter(filtered_mag, self.resolutions[channel], pass_step_width = int(self.pass_bandwidth / self.channel_bandwidths[channel] * self.resolutions[channel]))
                 centroid = tools.centroid(self.avg_freq_domain[channel], filtered_mag)
                 self.centroids[channel, step] = centroid
-        if filter:
+        if filter:   
+            #for channel in range(self.channel_count):
+            #    self.centroids[channel] = tools.remove_outliers(self.centroids[channel])
+            waterfall.save_all(self.centroids) 
             for channel in range(self.channel_count):
-                self.centroids[channel] = tools.lowpass_filter(self.centroids[channel])
+                self.centroids[channel] = tools.lowpass_filter(self.centroids[channel], self.step_timelength)
         waterfall.save_all(self.centroids)
         csv.save_all(self.centroids)
         reader.close()

@@ -1,3 +1,4 @@
+from matplotlib.pyplot import step
 import numpy as np
 from numpy.core.numeric import NaN
 from skyfield.api import load, wgs84, utc
@@ -22,6 +23,7 @@ def avg_binning(inputArray, resolution):
     return avg_mag
 
 def channel_filter(mag, resolution, pass_step_width):
+    """filter our every peaks that narrower than pass_step_width"""
     in_channel = False
     mag[-pass_step_width:-1] = 0
     for i in range(resolution):
@@ -35,7 +37,7 @@ def channel_filter(mag, resolution, pass_step_width):
 
 def calculate_offset(input_mag):
     #resolution = int(full_bandwidth/pass_bandwidth)
-    resolution = 10
+    resolution = 10             #Divide the kernel to 10 parts
     mag = np.empty(resolution)
     std = np.empty(resolution)
     for i, value in enumerate(np.array_split(input_mag, resolution)):
@@ -43,9 +45,18 @@ def calculate_offset(input_mag):
         std[i] = np.std(value)
     return - (np.min(mag) + 4*np.min(std))
 
-def lowpass_filter(centroids):
-    sos = signal.butter(4, 0.02, output='sos')
-    return signal.sosfiltfilt(sos, centroids)
+def lowpass_filter(centroids, step_timelength):
+    sos = signal.butter(4, 0.01*step_timelength, output='sos')
+    return signal.sosfiltfilt(sos, centroids, padlen=int(len(centroids)/10))
+
+def remove_outliers(centroids):
+    """Removing ourliers for centroids"""
+    cutoff = np.std(centroids)
+    mean = np.mean(centroids)
+    return np.clip(centroids, a_min=mean-cutoff*2, a_max=mean+cutoff*2)
+def peaking(kernel):
+    """Peak counting to determine the centroid of NOAA"""
+    pass
 
 class TLE:
     def __init__(self, signal_object):#data_path, time_of_record, total_step, step_timelength

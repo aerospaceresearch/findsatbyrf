@@ -34,8 +34,8 @@ class WavReader:
     def close(self):
         self.reader.close()
 
-class CsvWriter:
-    def __init__(self, signal_object, frequency_unit='kHz'):
+class Csv:
+    def __init__(self, signal_object, frequency_unit='kHz', type='w'):
         if frequency_unit.lower() == 'hz':
             self.scale = 1
         elif frequency_unit.lower() == 'mhz':
@@ -43,7 +43,7 @@ class CsvWriter:
         else:
             self.scale = 1e-3                                    #Transform Hz to kHz
             frequency_unit = 'kHz'
-        self.file = open(os.path.normpath(signal_object.data_path+f"{signal_object.name}_{signal_object.time_of_record.strftime('%Y-%m-%d')}.csv"), 'w', newline='')
+        self.file = open(os.path.normpath(signal_object.data_path+f"{signal_object.name}_{signal_object.time_of_record.strftime('%Y-%m-%d')}.csv"), type, newline='')
         self.reader = csv.writer(self.file)
         header = [f"date={signal_object.time_of_record.strftime('%Y-%m-%d')}"]
         for channel in range(signal_object.channel_count):
@@ -67,6 +67,8 @@ class CsvWriter:
                 data.append(self.scale * (centroids[channel, step] + self.center_frequency))
             self.reader.writerow(data)            
     
+    def read_file(self):
+        pass
     def export(self):
         self.file.close()
 
