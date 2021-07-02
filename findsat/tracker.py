@@ -1,4 +1,5 @@
 import numpy as np
+from numpy.core.numeric import load
 import tools
 import os
 import signal_io as io
@@ -73,7 +74,10 @@ class Signal:
         self.avg_freq_domain.append(tools.avg_binning(self.full_freq[bandwidth_index], int(channel_bandwidth/self.sensitivity)))
         self.channel_freq_domain_len.append(len(bandwidth_index))
 
-    def process(self, filter=True, safety_factor = 0):
+    def process(self, filter=True, peak_finding=False, safety_factor = 0, NOAA_default=False):
+        if NOAA_default:
+            filter = False
+            peak_finding = True
         self.centroids = np.empty((self.channel_count, self.total_step))
         reader = io.WavReader(self)
         waterfall = io.Waterfall(self)
@@ -90,12 +94,13 @@ class Signal:
                 if safety_factor != 0:
                     avg_mag -= np.max(avg_mag) * safety_factor
                 filtered_mag = np.clip(avg_mag, a_min=0., a_max=None)
-                tools.channel_filter(filtered_mag, self.resolutions[channel], pass_step_width = int(self.pass_bandwidth / self.channel_bandwidths[channel] * self.resolutions[channel]))
+                #tools.channel_filter(filtered_mag, self.resolutions[channel], pass_step_width = int(self.pass_bandwidth / self.channel_bandwidths[channel] * self.resolutions[channel]))
                 centroid = tools.centroid(self.avg_freq_domain[channel], filtered_mag)
+                if peak_finding:
+                    centroid = tools.peak_finding(self.avg_freq_domain[channel], filtered_mag, centroid)
                 self.centroids[channel, step] = centroid
+
         if filter:   
-            #for channel in range(self.channel_count):
-            #    self.centroids[channel] = tools.remove_outliers(self.centroids[channel])
             waterfall.save_all(self.centroids) 
             for channel in range(self.channel_count):
                 self.centroids[channel] = tools.lowpass_filter(self.centroids[channel], self.step_timelength)
@@ -103,7 +108,7 @@ class Signal:
         csv.save_all(self.centroids)
         reader.close()
         waterfall.export()
-        #csv.export()
+        csv.export()
         print(f"Processing data... 100.00%", end='\r\n')
 
 

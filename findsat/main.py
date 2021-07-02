@@ -1,14 +1,15 @@
 import tracker
 #import rtlsdr
 from datetime import datetime
-
+import warnings
+warnings.filterwarnings('error')
 def main():
     print("Initializing... ", end="")
     signal = tracker.Signal(name = 'UnknownNOAA',                   #name of the signal
                             data_path = 'data',                     #path to the data-containing folder from the findsat folder
                             center_frequency = 137.5e6,             #center frequency of the wave file
-                            sensitivity= 100,                       #width of each bin in Hz            
-                            step_timelength = 1.,                   #length of each time step in second
+                            sensitivity= 1.,                       #width of each bin in Hz            
+                            step_timelength =1.,                   #length of each time step in second
                             pass_bandwidth=5e3,                     #minimum width of a peak in waterfall to not be considered a noise
                             time_of_record = '2021-06-04 20:17:05') #time in UTC
     
@@ -17,7 +18,7 @@ def main():
     print("Done")
 
     start_time = datetime.now()
-    signal.process(filter=True)
+    signal.process(NOAA_default=True)
     print(f"Finished in {datetime.now() - start_time}")        
 
 if __name__ == '__main__':

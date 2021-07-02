@@ -1,3 +1,4 @@
+from math import ceil
 from matplotlib.pyplot import step
 import numpy as np
 from numpy.core.numeric import NaN
@@ -17,13 +18,15 @@ def centroid(freq, mag):
         return  np.sum(freq * mag) / mag_sum
 
 def avg_binning(inputArray, resolution):
+    if len(inputArray) <= resolution:
+        return inputArray
     avg_mag = np.empty(resolution)
     for i, value in enumerate(np.array_split(inputArray, resolution)):
         avg_mag[i] = np.mean(value)
     return avg_mag
 
 def channel_filter(mag, resolution, pass_step_width):
-    """filter our every peaks that narrower than pass_step_width"""
+    """filter our every peaks that narrower than pass_step_width, deprecated"""
     in_channel = False
     mag[-pass_step_width:-1] = 0
     for i in range(resolution):
@@ -48,6 +51,15 @@ def calculate_offset(input_mag):
 def lowpass_filter(centroids, step_timelength):
     sos = signal.butter(4, 0.01*step_timelength, output='sos')
     return signal.sosfiltfilt(sos, centroids, padlen=int(len(centroids)/10))
+
+def peak_finding(freq_domain, mag_domain, centroid):
+    if np.isnan(centroid):
+        return NaN
+    local_region_indices = np.where(np.logical_and(freq_domain> centroid - 1e3, freq_domain < centroid + 1e3))
+    local_mag = mag_domain[local_region_indices]
+    local_freq = freq_domain[local_region_indices]
+    local_peak = np.argmax(local_mag)
+    return local_freq[local_peak]
 
 def remove_outliers(centroids):
     """Removing ourliers for centroids"""
