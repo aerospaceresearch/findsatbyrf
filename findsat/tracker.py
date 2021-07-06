@@ -1,24 +1,19 @@
 import numpy as np
-from numpy.core.numeric import load
 import tools
-import os
 import signal_io as io
 import glob
-import matplotlib.pyplot as plt
-from datetime import datetime, timedelta
+from datetime import datetime
 
 class Signal:
-    def __init__(self, name='Unknown',
-            data_path='data',
-            center_frequency = None,
-            expected_frequency = None,
-            step_timelength = None,
-            sensitivity = None,
-            pass_bandwidth = None,
+    def __init__(self, 
+            name='Unknown',
+            type = 'general',
+            data_path = 'data',
+            center_frequency = 0.,
+            step_timelength = 1.,
+            sensitivity = 10.,
             time_of_record = None):
-
         self.name = name
-        # self.safety = 0.5
         self.channel_frequencies = []
         self.bandwidth_indices = []
         self.full_freq_domain = []
@@ -28,34 +23,17 @@ class Signal:
         self.resolutions = []
         self.data_path = io.PATH + data_path + "/"
         self.channel_count = 0
-
-        if expected_frequency == None:
-            self.expected_frequency = 0
-        else:
-            self.expected_frequency = expected_frequency
-
-        if sensitivity != None:
-            self.sensitivity = sensitivity
-
-        if center_frequency == None:
-            self.center_frequency = 0
-        else:
-            self.center_frequency = center_frequency
-
-        if step_timelength == None:
-            self.step_timelength = 1.
-        else:
-            self.step_timelength = step_timelength
-
-        if pass_bandwidth == None:
-            self.pass_bandwidth = 1000
-        else:
-            self.pass_bandwidth = pass_bandwidth
-
+        self.center_frequency = center_frequency
+        self.sensitivity = sensitivity
+        self.step_timelength = step_timelength
         if time_of_record == None:
-            self.time_of_record = 0
+            self.time_of_record = datetime.now()
         else:
             self.time_of_record = datetime.strptime(time_of_record, "%Y-%m-%d %H:%M:%S")
+        if type.lower() == 'noaa':
+            self.type = 'NOAA'
+        else:
+            self.type = 'general'
 
     def read_info_from_wav(self, time_begin=0, time_end=None):
         self.wav_path = glob.glob(self.data_path+'*.wav')[0]
@@ -74,14 +52,9 @@ class Signal:
         self.avg_freq_domain.append(tools.avg_binning(self.full_freq[bandwidth_index], int(channel_bandwidth/self.sensitivity)))
         self.channel_freq_domain_len.append(len(bandwidth_index))
 
-    def process(self, filter=True, peak_finding=False, safety_factor = 0, NOAA_default=False):
-        if NOAA_default:
-            filter = False
-            peak_finding = True
+    def find_centroids(self, peak_finding_range=None, safety_factor = 0.):
         self.centroids = np.empty((self.channel_count, self.total_step))
         reader = io.WavReader(self)
-        waterfall = io.Waterfall(self)
-        csv = io.Csv(self)
         for step in range(self.total_step):
             print(f"Processing data... {step/self.total_step*100:.2f}%", end='\r')
             time_data = reader.read_current_step()              # * np.hanning(self.step_framelength)
@@ -91,25 +64,39 @@ class Signal:
                 avg_mag = tools.avg_binning(channel_kernel, self.resolutions[channel])   
                 noise_offset = tools.calculate_offset(avg_mag)   
                 avg_mag += noise_offset
-                if safety_factor != 0:
+                if safety_factor != 0.:
                     avg_mag -= np.max(avg_mag) * safety_factor
                 filtered_mag = np.clip(avg_mag, a_min=0., a_max=None)
-                #tools.channel_filter(filtered_mag, self.resolutions[channel], pass_step_width = int(self.pass_bandwidth / self.channel_bandwidths[channel] * self.resolutions[channel]))
                 centroid = tools.centroid(self.avg_freq_domain[channel], filtered_mag)
-                if peak_finding:
-                    centroid = tools.peak_finding(self.avg_freq_domain[channel], filtered_mag, centroid)
+                if peak_finding_range != None:
+                    centroid = tools.peak_finding(self.avg_freq_domain[channel], filtered_mag, centroid, peak_finding_range)
                 self.centroids[channel, step] = centroid
+        reader.close()
 
+    def export(self, filter=False):
+        waterfall = io.Waterfall(self)
+        csv = io.Csv(self)
         if filter:   
-            waterfall.save_all(self.centroids) 
             for channel in range(self.channel_count):
                 self.centroids[channel] = tools.lowpass_filter(self.centroids[channel], self.step_timelength)
         waterfall.save_all(self.centroids)
         csv.save_all(self.centroids)
-        reader.close()
         waterfall.export()
         csv.export()
         print(f"Processing data... 100.00%", end='\r\n')
+
+    def process(self, default=True, filter=False, peak_finding_range=None, safety_factor = 0.):
+        if default:
+            if self.type == 'NOAA':
+                self.find_centroids(peak_finding_range = 1000)
+                self.export(filter=filter)
+            elif self.type == 'general':
+                self.find_centroids()
+                self.export(filter=filter)
+        else:
+            self.find_centroids(peak_finding_range=peak_finding_range, safety_factor=safety_factor)
+            self.export(filter=filter)
+
 
 
 

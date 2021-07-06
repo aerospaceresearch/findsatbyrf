@@ -1,5 +1,3 @@
-from math import ceil
-from matplotlib.pyplot import step
 import numpy as np
 from numpy.core.numeric import NaN
 from skyfield.api import load, wgs84, utc
@@ -26,7 +24,8 @@ def avg_binning(inputArray, resolution):
     return avg_mag
 
 def channel_filter(mag, resolution, pass_step_width):
-    """filter our every peaks that narrower than pass_step_width, deprecated"""
+    """filter our every peaks that narrower than pass_step_width, deprecated""" 
+    #tools.channel_filter(filtered_mag, self.resolutions[channel], pass_step_width = int(self.pass_bandwidth / self.channel_bandwidths[channel] * self.resolutions[channel]))
     in_channel = False
     mag[-pass_step_width:-1] = 0
     for i in range(resolution):
@@ -49,14 +48,16 @@ def calculate_offset(input_mag):
     return - (np.min(mag) + 4*np.min(std))
 
 def lowpass_filter(centroids, step_timelength):
-    sos = signal.butter(4, 0.01*step_timelength, output='sos')
+    sos = signal.butter(8, 0.01*step_timelength, output='sos')
     return signal.sosfiltfilt(sos, centroids, padlen=int(len(centroids)/10))
 
-def peak_finding(freq_domain, mag_domain, centroid):
+def peak_finding(freq_domain, mag_domain, centroid, range = 1e3):
     if np.isnan(centroid):
         return NaN
-    local_region_indices = np.where(np.logical_and(freq_domain> centroid - 1e3, freq_domain < centroid + 1e3))
+    local_region_indices = np.where(np.logical_and(freq_domain> centroid - range/2, freq_domain < centroid + range/2))          #Search for peaks in +- 1kHz around the centroid
     local_mag = mag_domain[local_region_indices]
+    if np.all((local_mag == 0)):
+        return NaN
     local_freq = freq_domain[local_region_indices]
     local_peak = np.argmax(local_mag)
     return local_freq[local_peak]
@@ -76,13 +77,13 @@ class TLE:
         with open(os.path.normpath(signal_object.data_path+"/station.txt"), "r") as f:
             for _ in range(4):
                 input_string = f.readline().replace(" ","").strip("\n").split("=")
-                if 'name' in input_string[0]:
+                if 'name' in input_string[0].lower():
                     self.station_name = input_string[1]
-                elif 'long' in input_string[0]:
+                elif 'long' in input_string[0].lower():
                     station_long = float(input_string[1])
-                elif 'lat' in input_string[0]:
+                elif 'lat' in input_string[0].lower():
                     station_lat = float(input_string[1])
-                elif 'alt' in input_string[0]:
+                elif 'alt' in input_string[0].lower():
                     station_alt = float(input_string[1])
         self.station = wgs84.latlon(station_lat, station_long, station_alt)
         self.satellite = load.tle_file(os.path.normpath(signal_object.data_path+"/satellite.tle"))[0]
