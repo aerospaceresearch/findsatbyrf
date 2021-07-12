@@ -7,7 +7,7 @@ import numpy as np
 import datetime
 import soundfile
 import tools
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 PATH=os.path.dirname(__file__)+'/'
 
 def read_info_from_wav(wav_path, step_timelength, time_begin, time_end):
@@ -73,7 +73,7 @@ class Csv:
         self.file.close()
 
 class Waterfall:
-    def __init__(self, signal_object, frequency_unit='kHz'):
+    def __init__(self, signal_object, frequency_unit='kHz', TLE_prediction=False):
         if frequency_unit.lower() == 'hz':
             self.scale = 1
         elif frequency_unit.lower() == 'mhz':
@@ -102,25 +102,30 @@ class Waterfall:
         self.channel_count = signal_object.channel_count
         self.center_frequency = signal_object.center_frequency
         self.channel_frequencies = signal_object.channel_frequencies
-        self.TLE = tools.TLE(signal_object) #.data_path, signal_object.time_of_record, signal_object.total_step, signal_object.step_timelength)
-        self.fig.suptitle(f"Centroid positions: RED = calculated from wav, BLUE = predicted from TLE\n{signal_object.name} signal recorded at {self.TLE.station_name} station on {signal_object.time_of_record.strftime('%Y-%m-%d')}")
         self.axs[-1].set_xlabel(f"Frequency [{frequency_unit}]")
-        self.save_path = os.path.normpath(signal_object.data_path+f"{signal_object.name}_{signal_object.time_of_record.strftime('%Y-%m-%d')}")
+        self.save_path = os.path.normpath(signal_object.data_path+f"{signal_object.name}")
 
-    def save_step(self, step, centroids, show_prediction=True):
-        for channel in range(self.channel_count):
-            if show_prediction:
-                prediction_from_TLE = self.scale * self.TLE.Doppler_prediction(channel, step)
-                self.axs[channel].plot(prediction_from_TLE, step, '.', color='blue', markersize = 0.5)
-            centroid = self.scale * (centroids[channel] + self.center_frequency)
-            self.axs[channel].plot(centroid, step, '.', color='red', markersize = 0.5)
+        self.TLE_prediction = TLE_prediction
+        if self.TLE_prediction:
+            self.TLE = tools.TLE(signal_object) #.data_path, signal_object.time_of_record, signal_object.total_step, signal_object.step_timelength)
+            self.fig.suptitle(f"Centroid positions: RED = calculated from wav, BLUE = predicted from TLE\n{signal_object.name} signal recorded at {self.TLE.station_name} station on {signal_object.time_of_record.strftime('%Y-%m-%d')}")
+        else:
+            self.fig.suptitle(f"Centroid positions calculated from wav\n{signal_object.name} signal recorded on {signal_object.time_of_record.strftime('%Y-%m-%d')}")
 
-    def save_all(self, centroids, show_prediction=True):
-        for channel in range(self.channel_count):
-            if show_prediction:
+
+    def save_all(self, centroids):
+        for channel in range(self.channel_count):   
+            actual_calculation = self.scale * (centroids[channel] + self.center_frequency)
+            self.axs[channel].plot(actual_calculation, range(self.total_step), '.', color='red', markersize = 0.5)
+            if self.TLE_prediction:
                 prediction_from_TLE = self.scale * self.TLE.Doppler_prediction(channel, range(self.total_step))
                 self.axs[channel].plot(prediction_from_TLE, range(self.total_step), '.', color='blue', markersize = 0.5)
-            self.axs[channel].plot(self.scale * (centroids[channel] + self.center_frequency), range(self.total_step), '.', color='red', markersize = 0.5)
+                raw_error = actual_calculation - prediction_from_TLE 
+                raw_error = raw_error[~np.isnan(raw_error)]
+                standard_error = np.std(raw_error, ddof=1) / np.sqrt(np.size(raw_error))
+                print("Finished calculation, Standard Error = ", standard_error)
+            
+
 
     def export(self, format='png'):
         self.fig.savefig(f"{self.save_path}.{format}", dpi=300)

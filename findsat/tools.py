@@ -39,16 +39,17 @@ def channel_filter(mag, resolution, pass_step_width):
 
 def calculate_offset(input_mag):
     #resolution = int(full_bandwidth/pass_bandwidth)
-    resolution = 10             #Divide the kernel to 10 parts
+    resolution = 16            #Divide the kernel to 16 parts
     mag = np.empty(resolution)
     std = np.empty(resolution)
     for i, value in enumerate(np.array_split(input_mag, resolution)):
-        mag[i] = np.mean(value)
-        std[i] = np.std(value)
-    return - (np.min(mag) + 4*np.min(std))
+        if np.any((value != 0)):
+            mag[i] = np.mean(value)
+            std[i] = np.std(value)
+    return - (np.min(mag) + 3*np.min(std))
 
 def lowpass_filter(centroids, step_timelength):
-    sos = signal.butter(8, 0.01*step_timelength, output='sos')
+    sos = signal.butter(8, 0.02*step_timelength, output='sos')
     return signal.sosfiltfilt(sos, centroids, padlen=int(len(centroids)/10))
 
 def peak_finding(freq_domain, mag_domain, centroid, range = 1e3):

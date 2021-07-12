@@ -27,7 +27,7 @@ class Signal:
         self.sensitivity = sensitivity
         self.step_timelength = step_timelength
         if time_of_record == None:
-            self.time_of_record = datetime.now()
+            self.time_of_record = datetime.strptime("2021-01-01 00:00:00", "%Y-%m-%d %H:%M:%S")
         else:
             self.time_of_record = datetime.strptime(time_of_record, "%Y-%m-%d %H:%M:%S")
         if type.lower() == 'noaa':
@@ -73,8 +73,8 @@ class Signal:
                 self.centroids[channel, step] = centroid
         reader.close()
 
-    def export(self, filter=False):
-        waterfall = io.Waterfall(self)
+    def export(self, filter=False, TLE_prediction=False):
+        waterfall = io.Waterfall(self, TLE_prediction=TLE_prediction)
         csv = io.Csv(self)
         if filter:   
             for channel in range(self.channel_count):
@@ -85,17 +85,17 @@ class Signal:
         csv.export()
         print(f"Processing data... 100.00%", end='\r\n')
 
-    def process(self, default=True, filter=False, peak_finding_range=None, safety_factor = 0.):
+    def process(self, default=True, TLE_prediction=False, filter=False, peak_finding_range=None, safety_factor = 0.):
         if default:
             if self.type == 'NOAA':
                 self.find_centroids(peak_finding_range = 1000)
-                self.export(filter=filter)
+                self.export(filter=filter, TLE_prediction=TLE_prediction)
             elif self.type == 'general':
                 self.find_centroids()
-                self.export(filter=filter)
+                self.export(filter=filter, TLE_prediction=TLE_prediction)
         else:
             self.find_centroids(peak_finding_range=peak_finding_range, safety_factor=safety_factor)
-            self.export(filter=filter)
+            self.export(filter=filter, TLE_prediction=TLE_prediction)
 
 
 
