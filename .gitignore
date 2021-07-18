@@ -6,6 +6,6 @@ __pycache__
 *.pyc*
 *.gif
 timeseries
-data
+data*
 unneeded*
 test.*

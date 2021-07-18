@@ -116,14 +116,19 @@ class Waterfall:
     def save_all(self, centroids):
         for channel in range(self.channel_count):   
             actual_calculation = self.scale * (centroids[channel] + self.center_frequency)
-            self.axs[channel].plot(actual_calculation, range(self.total_step), '.', color='red', markersize = 0.5)
             if self.TLE_prediction:
                 prediction_from_TLE = self.scale * self.TLE.Doppler_prediction(channel, range(self.total_step))
                 self.axs[channel].plot(prediction_from_TLE, range(self.total_step), '.', color='blue', markersize = 0.5)
                 raw_error = actual_calculation - prediction_from_TLE 
+                temporal_noise = np.std(raw_error[~np.isnan(raw_error)])
+                for index, error in enumerate(raw_error):
+                    if not np.isnan(error) and np.abs(error) > 2*temporal_noise:
+                        actual_calculation[index] = np.nan
+                raw_error = actual_calculation - prediction_from_TLE 
                 raw_error = raw_error[~np.isnan(raw_error)]
-                standard_error = np.std(raw_error, ddof=1) / np.sqrt(np.size(raw_error))
-                print("Finished calculation, Standard Error = ", standard_error)
+                standard_error = np.std(raw_error) / np.sqrt(np.size(raw_error))
+                print(f"Finished calculation for channel {channel}, Standard Error = ", standard_error)
+            self.axs[channel].plot(actual_calculation, range(self.total_step), '.', color='red', markersize = 0.5)
             
 
 
