@@ -8,7 +8,55 @@ import datetime
 import soundfile
 import tools
 from datetime import datetime, time, timedelta
+from argparse import ArgumentParser
 PATH=os.path.dirname(__file__)+'/'
+
+def read_cli_arguments():
+    parser = ArgumentParser()
+    parser.add_argument("-i", "--input_folder", type=str, action='store', metavar='folder', help="Name of the folder containing all the data", default="data")
+    parser.add_argument("-ch1", "--channel_1", type=float, action='store', metavar='frequency_in_Hz', help="Center frequency of channel 1 (Hz)", default=None)
+    parser.add_argument("-ch2", "--channel_2", type=float, action='store', metavar='frequency_in_Hz', help="Center frequency of channel 2 (Hz)", default=None)
+    parser.add_argument("-ch3", "--channel_3", type=float, action='store', metavar='frequency_in_Hz', help="Center frequency of channel 3 (Hz)", default=None)
+    parser.add_argument("-ch4", "--channel_4", type=float, action='store', metavar='frequency_in_Hz', help="Center frequency of channel 4 (Hz)", default=None)
+    parser.add_argument("-bw1", "--bandwidth_1", type=float, action='store', metavar='frequency_in_Hz', help="Bandwidth of channel 1 (Hz)", default=None)
+    parser.add_argument("-bw2", "--bandwidth_2", type=float, action='store', metavar='frequency_in_Hz', help="Bandwidth of channel 2 (Hz)", default=None)
+    parser.add_argument("-bw3", "--bandwidth_3", type=float, action='store', metavar='frequency_in_Hz', help="Bandwidth of channel 3 (Hz)", default=None)
+    parser.add_argument("-bw4", "--bandwidth_4", type=float, action='store', metavar='frequency_in_Hz', help="Bandwidth of channel 4 (Hz)", default=None)
+    parser.add_argument("-step", "--time_step", type=float, action='store', metavar='time_in_second', help="Length of each time step in second", default=1.0)
+    parser.add_argument("-sen", "--sensitivity", type=float, action='store', metavar='frequency_in_Hz', help="Length of each time step in second", default=1.0)
+    parser.add_argument("-tle", "--tle_prediction", action='store_true', help="Use prediction from TLE", default=False)
+    parser.add_argument("-begin", "--time_begin", type=float, action='store', metavar='time_in_second', help="Time of begin of the segment to be analyzed", default=0)
+    parser.add_argument("-end", "--time_end", type=float, action='store', metavar='time_in_second', help="Time of end of the segment to be analyzed", default=None)
+    args = vars(parser.parse_args())
+    channels = []
+    if args["channel_1"] != None and args["bandwidth_1"] != None:
+        channels.append((args["channel_1"], args["bandwidth_1"]))
+    if args["channel_2"] != None and args["bandwidth_2"] != None:
+        channels.append((args["channel_2"], args["bandwidth_2"]))
+    if args["channel_3"] != None and args["bandwidth_3"] != None:
+        channels.append((args["channel_3"], args["bandwidth_3"]))
+    if args["channel_4"] != None and args["bandwidth_4"] != None:
+        channels.append((args["channel_4"], args["bandwidth_4"]))
+    return args["input_folder"], args["time_step"], args["sensitivity"], args["tle_prediction"], args["time_begin"], args["time_end"], channels
+
+def read_input_folder(folder):
+    name = 'Unknown'
+    type = 'general'
+    center_frequency = 0.
+    time_of_record = None
+    with open(os.path.normpath(folder+"/signal_info.txt"), "r") as f:
+            for _ in range(4):
+                input_string = f.readline().replace(" ","").strip("\n").split("=")
+                if 'name' in input_string[0].lower():
+                    name = input_string[1]
+                elif 'type' in input_string[0].lower():
+                    type = input_string[1]
+                elif 'freq' in input_string[0].lower():
+                    center_frequency = float(input_string[1])
+                elif 'time' in input_string[0].lower():
+                    time_of_record = input_string[1]
+    return name, type, center_frequency, time_of_record
+
 
 def read_info_from_wav(wav_path, step_timelength, time_begin, time_end):
     with soundfile.SoundFile(wav_path, 'r') as f:
@@ -43,7 +91,9 @@ class Csv:
         else:
             self.scale = 1e-3                                    #Transform Hz to kHz
             frequency_unit = 'kHz'
-        self.file = open(os.path.normpath(signal_object.data_path+f"{signal_object.name}_{signal_object.time_of_record.strftime('%Y-%m-%d')}.csv"), type, newline='')
+        self.file_name = f"{signal_object.name}_{signal_object.time_of_record.strftime('%Y-%m-%d')}.csv"
+        os.path.normpath(signal_object.data_path+f"{signal_object.name}_{signal_object.time_of_record.strftime('%Y-%m-%d')}.csv")
+        self.file = open(os.path.normpath(signal_object.data_path + self.file_name), type, newline='')
         self.reader = csv.writer(self.file)
         header = [f"date={signal_object.time_of_record.strftime('%Y-%m-%d')}"]
         for channel in range(signal_object.channel_count):
@@ -71,6 +121,7 @@ class Csv:
         pass
     def export(self):
         self.file.close()
+        print(f"Exported to {self.file_name}")
 
 class Waterfall:
     def __init__(self, signal_object, frequency_unit='kHz', TLE_prediction=False):
@@ -103,7 +154,8 @@ class Waterfall:
         self.center_frequency = signal_object.center_frequency
         self.channel_frequencies = signal_object.channel_frequencies
         self.axs[-1].set_xlabel(f"Frequency [{frequency_unit}]")
-        self.save_path = os.path.normpath(signal_object.data_path+f"{signal_object.name}")
+        self.file_name = f"{signal_object.name}"
+        self.save_path = os.path.normpath(signal_object.data_path + self.file_name)
 
         self.TLE_prediction = TLE_prediction
         if self.TLE_prediction:
@@ -127,12 +179,12 @@ class Waterfall:
                 raw_error = actual_calculation - prediction_from_TLE 
                 raw_error = raw_error[~np.isnan(raw_error)]
                 standard_error = np.std(raw_error) / np.sqrt(np.size(raw_error))
-                print(f"Finished calculation for channel {channel}, Standard Error = ", standard_error)
+                print(f"Finished calculation for channel {channel}, Standard Error = {standard_error/self.scale} Hz")
             self.axs[channel].plot(actual_calculation, range(self.total_step), '.', color='red', markersize = 0.5)
             
-
 
     def export(self, format='png'):
         self.fig.savefig(f"{self.save_path}.{format}", dpi=300)
         plt.close(self.fig)
+        print(f"Exported to {self.file_name}.{format}")
 

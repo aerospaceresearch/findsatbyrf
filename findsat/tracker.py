@@ -5,15 +5,15 @@ import glob
 from datetime import datetime
 
 class Signal:
-    def __init__(self, 
-            name='Unknown',
-            type = 'general',
-            data_path = 'data',
-            center_frequency = 0.,
-            step_timelength = 1.,
-            sensitivity = 10.,
-            time_of_record = None):
-        self.name = name
+    def __init__(self, data_path = 'data', sensitivity = 1.0, step_timelength = 1.0):
+        self.data_path = io.PATH + data_path + "/"
+        self.name, type, self.center_frequency, time_of_record =  io.read_input_folder(self.data_path)
+        if type.lower() == 'noaa':
+            self.type = 'NOAA'
+        else:
+            self.type = 'general'
+        self.time_of_record = datetime.strptime(time_of_record, "%Y-%m-%dT%H:%M:%SZ")
+
         self.channel_frequencies = []
         self.bandwidth_indices = []
         self.full_freq_domain = []
@@ -21,15 +21,12 @@ class Signal:
         self.channel_bandwidths = []
         self.channel_freq_domain_len = []
         self.resolutions = []
-        self.data_path = io.PATH + data_path + "/"
         self.channel_count = 0
-        self.center_frequency = center_frequency
         self.sensitivity = sensitivity
         self.step_timelength = step_timelength
-        if time_of_record == None:
-            self.time_of_record = datetime.strptime("2021-01-01 00:00:00", "%Y-%m-%d %H:%M:%S")
-        else:
-            self.time_of_record = datetime.strptime(time_of_record, "%Y-%m-%d %H:%M:%S")
+        # if time_of_record == None:
+        #     self.time_of_record = datetime.strptime("2021-01-01 00:00:00", "%Y-%m-%d %H:%M:%S")
+        # else:
         if type.lower() == 'noaa':
             self.type = 'NOAA'
         else:
