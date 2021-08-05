@@ -1,6 +1,6 @@
 import numpy as np
 from numpy.core.numeric import NaN
-from skyfield.api import load, wgs84, utc
+from skyfield.api import load, EarthSatellite, wgs84, utc
 from scipy.constants import c
 import datetime
 import os
@@ -75,19 +75,12 @@ def peaking(kernel):
 class TLE:
     def __init__(self, signal_object):#data_path, time_of_record, total_step, step_timelength
         time_scale = load.timescale()
-        with open(os.path.normpath(signal_object.data_path+"/station.txt"), "r") as f:
-            for _ in range(4):
-                input_string = f.readline().replace(" ","").strip("\n").split("=")
-                if 'name' in input_string[0].lower():
-                    self.station_name = input_string[1]
-                elif 'long' in input_string[0].lower():
-                    station_long = float(input_string[1])
-                elif 'lat' in input_string[0].lower():
-                    station_lat = float(input_string[1])
-                elif 'alt' in input_string[0].lower():
-                    station_alt = float(input_string[1])
+        self.station_name = signal_object.station_data["name"]
+        station_long = signal_object.station_data["longitude"]
+        station_lat = signal_object.station_data["latitude"]
+        station_alt = signal_object.station_data["altitude"]
         self.station = wgs84.latlon(station_lat, station_long, station_alt)
-        self.satellite = load.tle_file(os.path.normpath(signal_object.data_path+"/satellite.tle"))[0]
+        self.satellite = EarthSatellite(signal_object.tle_data["line_1"], signal_object.tle_data["line_2"], signal_object.name, time_scale)
         self.time_of_record = signal_object.time_of_record.replace(tzinfo=utc)
         self.signal_time = [time_scale.utc(self.time_of_record + datetime.timedelta(seconds=step*signal_object.step_timelength)) for step in range(signal_object.total_step)]
         self.channel_frequencies = signal_object.channel_frequencies
