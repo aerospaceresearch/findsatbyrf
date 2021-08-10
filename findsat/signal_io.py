@@ -11,7 +11,7 @@ from datetime import datetime, time, timedelta
 from argparse import ArgumentParser
 # PATH=os.path.dirname(__file__)+'/'
 
-class metadata_input:
+class Metadata:
     def __init__(self):
         self.input_file = None
         self.info_file = None
