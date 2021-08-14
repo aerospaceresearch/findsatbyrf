@@ -163,6 +163,35 @@ class Csv:
         self.file.close()
         print(f"Exported to {self.output_file}")
 
+class Json:
+    def __init__(self, signal_object):
+        self.output_file = signal_object.output_file+".json"
+        self.file = open(self.output_file, 'w')
+        self.data_to_dump = {}
+        self.data_to_dump['header'] = {}
+        self.data_to_dump['header']['name'] = signal_object.name
+        self.data_to_dump['header']['date'] = signal_object.time_of_record.strftime('%Y-%m-%d')
+        self.data_to_dump['header']['time_step[second]'] = signal_object.step_timelength
+        for channel in range(signal_object.channel_count):
+            self.data_to_dump['header'][f"ch_{channel}[Hz]"] = signal_object.channel_frequencies[channel]
+        self.center_frequency = signal_object.center_frequency
+        self.total_step = signal_object.total_step
+        self.channel_count = signal_object.channel_count
+        self.time_labels = [(signal_object.time_of_record + timedelta(seconds=step*signal_object.step_timelength)).strftime('%H:%M:%S.%f') for step in range(0, signal_object.total_step)]
+        self.data_to_dump['signal_center'] = {}
+        self.data_to_dump['signal_center']['label'] = "time[hh:mm:ss]: signal_center[Hz]"
+
+    def save_all(self, centroids):
+        for channel in range(self.channel_count):
+            self.data_to_dump['signal_center'][f"ch_{channel}"] = {}
+            for step in range(self.total_step):
+                self.data_to_dump['signal_center'][f"ch_{channel}"][self.time_labels[step]] = centroids[channel, step] + self.center_frequency
+        json.dump(self.data_to_dump, self.file, indent=4)
+    
+    def export(self):
+        self.file.close()
+        print(f"Exported to {self.output_file}")
+
 class Waterfall:
     def __init__(self, signal_object, frequency_unit='kHz', tle_prediction=False):
         if frequency_unit.lower() == 'hz':

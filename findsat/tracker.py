@@ -87,13 +87,16 @@ class Signal:
     def export(self, filter=False):
         waterfall = io.Waterfall(self, tle_prediction = self.tle_prediction)
         csv = io.Csv(self)
+        json = io.Json(self)
         if filter:   
             for channel in range(self.channel_count):
                 self.centroids[channel] = tools.lowpass_filter(self.centroids[channel], self.step_timelength)
         waterfall.save_all(self.centroids)
         csv.save_all(self.centroids)
+        json.save_all(self.centroids)
         waterfall.export()
         csv.export()
+        json.export()
         print(f"Processing data... 100.00%", end='\r\n')
 
     def process(self, default=True, filter=False, peak_finding_range=None, safety_factor = 0.):
