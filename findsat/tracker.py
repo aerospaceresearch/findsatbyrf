@@ -52,7 +52,6 @@ class Signal:
 
     def add_channel(self, channel_frequency, channel_bandwidth):
         self.channel_frequencies.append(channel_frequency)
-        self.channel_count += 1
         self.channel_bandwidths.append(channel_bandwidth)
         self.resolutions.append(int(channel_bandwidth/self.sensitivity))
         bandwidth_index = np.where(np.logical_and(self.full_freq > channel_frequency - self.center_frequency - channel_bandwidth/2, self.full_freq < channel_frequency - self.center_frequency + channel_bandwidth/2))
@@ -60,6 +59,8 @@ class Signal:
         self.full_freq_domain.append(self.full_freq[bandwidth_index])
         self.avg_freq_domain.append(tools.avg_binning(self.full_freq[bandwidth_index], int(channel_bandwidth/self.sensitivity)))
         self.channel_freq_domain_len.append(len(bandwidth_index))
+        print(f"Added channel {self.channel_count}: frequency = {channel_frequency} Hz, bandwidth = {channel_bandwidth} Hz")
+        self.channel_count += 1
 
     def find_centroids(self, peak_finding_range=None, safety_factor = 0.):
         self.centroids = np.empty((self.channel_count, self.total_step))

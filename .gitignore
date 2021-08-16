@@ -1,5 +1,8 @@
 *.zip
 *.wav
+*.json
+*.png
+*.csv
 SDRSharp*
 __pycache__
 *.pyc

@@ -28,14 +28,14 @@ class Metadata:
         parser.add_argument("-f", "--input_file", type=str, action='store', metavar='wav/dat_file', help="The wav/dat wave signal file that needs to be analyzed", required= True)
         parser.add_argument("-i", "--input_signal_info", type=str, action='store', metavar='json_file', help="The json file containing the signal information", required=True)
         parser.add_argument("-o", "--output_file", type=str, action='store', metavar='name_of_output_file', help="Name of the output files without extension part", default="./output")
-        parser.add_argument("-ch0", "--channel_0", type=float, action='store', metavar='frequency_in_Hz', help="Center frequency of channel 1 (Hz)", default=None, required=True)
-        parser.add_argument("-ch1", "--channel_1", type=float, action='store', metavar='frequency_in_Hz', help="Center frequency of channel 2 (Hz)", default=None)
-        parser.add_argument("-ch2", "--channel_2", type=float, action='store', metavar='frequency_in_Hz', help="Center frequency of channel 3 (Hz)", default=None)
-        parser.add_argument("-ch3", "--channel_3", type=float, action='store', metavar='frequency_in_Hz', help="Center frequency of channel 4 (Hz)", default=None)
-        parser.add_argument("-bw0", "--bandwidth_0", type=float, action='store', metavar='frequency_in_Hz', help="Bandwidth of channel 1 (Hz)", default=None, required=True)
-        parser.add_argument("-bw1", "--bandwidth_1", type=float, action='store', metavar='frequency_in_Hz', help="Bandwidth of channel 2 (Hz)", default=None)
-        parser.add_argument("-bw2", "--bandwidth_2", type=float, action='store', metavar='frequency_in_Hz', help="Bandwidth of channel 3 (Hz)", default=None)
-        parser.add_argument("-bw3", "--bandwidth_3", type=float, action='store', metavar='frequency_in_Hz', help="Bandwidth of channel 4 (Hz)", default=None)
+        parser.add_argument("-ch0", "--channel_0", type=float, action='store', metavar='frequency_in_Hz', help="Center frequency of channel 0 (Hz)", default=None)
+        parser.add_argument("-ch1", "--channel_1", type=float, action='store', metavar='frequency_in_Hz', help="Center frequency of channel 1 (Hz)", default=None)
+        parser.add_argument("-ch2", "--channel_2", type=float, action='store', metavar='frequency_in_Hz', help="Center frequency of channel 2 (Hz)", default=None)
+        parser.add_argument("-ch3", "--channel_3", type=float, action='store', metavar='frequency_in_Hz', help="Center frequency of channel 3 (Hz)", default=None)
+        parser.add_argument("-bw0", "--bandwidth_0", type=float, action='store', metavar='frequency_in_Hz', help="Bandwidth of channel 0 (Hz)", default=None)
+        parser.add_argument("-bw1", "--bandwidth_1", type=float, action='store', metavar='frequency_in_Hz', help="Bandwidth of channel 1 (Hz)", default=None)
+        parser.add_argument("-bw2", "--bandwidth_2", type=float, action='store', metavar='frequency_in_Hz', help="Bandwidth of channel 2 (Hz)", default=None)
+        parser.add_argument("-bw3", "--bandwidth_3", type=float, action='store', metavar='frequency_in_Hz', help="Bandwidth of channel 3 (Hz)", default=None)
         parser.add_argument("-step", "--time_step", type=float, action='store', metavar='time_in_second', help="Length of each time step in second", default=1.0)
         parser.add_argument("-sen", "--sensitivity", type=float, action='store', metavar='frequency_in_Hz', help="Length of bin step in second", default=1.0)
         parser.add_argument("-tle", "--tle_prediction", action='store_true', help="Use prediction from TLE", default=False)
@@ -89,6 +89,13 @@ class Metadata:
             self.time_of_record = datetime.now()
         self.tle_data = None
         self.station_data = None
+        if len(self.channels) == 0 and ("default_channel" in json_data):
+            if len(json_data["default_channel"]) > 0:
+                for channel in json_data["default_channel"]:
+                    self.channels.append((channel["frequency"], channel["bandwidth"]))
+        else:
+            print("Channel information must be provided in the CLI or in the json input file.")
+            raise SystemError
         if "tle" in json_data:
             self.tle_data = json_data["tle"]
         elif self.tle_prediction:
@@ -99,7 +106,6 @@ class Metadata:
         elif self.tle_prediction:
             print("Station information is not found in the json file")
             raise SystemError
-
 
 def read_info_from_wav(wav_path, step_timelength, time_begin, time_end):
     with soundfile.SoundFile(wav_path, 'r') as f:
