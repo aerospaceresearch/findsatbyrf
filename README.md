@@ -1,6 +1,8 @@
 # Overview:
 This program finds the center in the frequency domain of a signal by time.
 
+Every major work on this repository is done by [Binh-Minh Tran-Huu](https://www.linkedin.com/in/tranhuubinhminh/) under instructions and monitor from mentor [Andreas Hornig](https://www.linkedin.com/in/andreas-hornig-253b2818/) of [Aerospaceresearch.net](https://aerospaceresearch.net/) as [a project participated in Google Summer of Code 2021](https://summerofcode.withgoogle.com/projects/#5393798554714112).
+
 # Usage:
 
 ## Step 1: Prepare your wave file (.wav/.dat) and a json file containing the information about your signal
@@ -36,7 +38,19 @@ Where:
 * "signal" object contains information about the signal file, such as name, center frequency and time of record. For now, there is only "type": "NOAA" is supported, if the signal is not NOAA then you should put "type": null or simply remove that key.
 * "tle" object contains the two lines of the "two-line element" file of the satellite that the signal comes from.
 * "station" object contains the information of the station, such as name, longitude (degree), latitude (degree) and altitude (meter).
-* "default_channel" object contains a _list_ of channels that will be analyzed in case there is no channel input from the command line. You can always add more channels into that list.
+* "default_channel" object contains a _list_ of channels that will be analyzed in case there is no channel input from the command line. *It could handle more than one channel, you can always add more channels into that list*, for example:
+```
+"default_channel": [
+        {
+            "frequency": 400574.350e3,
+            "bandwidth": 20e3
+        },
+        {
+            "frequency": 400575.0e3,
+            "bandwidth": 20e3
+        }
+    ]
+```
 
 > **_NOTE:_** "tle" and "station" objects are only needed if you intend to use signal center frequency prediction based on TLE, "default_channel" object is only needed if you want to not put channel information into the command line, otherwise you can remove them. 
 
@@ -165,7 +179,7 @@ Where n is the number of samples, x_i is the difference between our calculated c
 ![APT_NOAA example](/docs/APT_example.png)
 
 2. For PIXL1(CUBESAT): Standard error = 0.029 kHz
-![APT_NOAA example](/docs/pixl_example.png)
+![PIXL example](/docs/pixl_example.png)
 
 ## Potential further improvements:
 * Expand the program to work better with more types of signals.

@@ -45,6 +45,8 @@ class Metadata:
         self.input_file = os.path.abspath(args["input_file"])
         self.info_file = os.path.abspath(args["input_signal_info"])
         self.output_file = os.path.abspath(args["output_file"])
+        self.time_step = args["time_step"]
+        self.sensitivity = args["sensitivity"]
         self.tle_prediction = args["tle_prediction"]
         self.time_begin = args["time_begin"]
         self.time_end = args["time_end"]
@@ -223,7 +225,7 @@ class Waterfall:
             self.axs = [self.axs]
         time_labels = [(signal_object.time_of_record + timedelta(seconds=step*signal_object.step_timelength)).strftime('%H:%M:%S') for step in range(0, signal_object.total_step+1, int(signal_object.total_step/10))]
         for channel in range(signal_object.channel_count):
-            self.axs[channel].set_yticks(range(0,self.total_step, int(self.total_step/10)))
+            self.axs[channel].set_yticks(range(0, self.total_step+1, int(self.total_step/10)))
             self.axs[channel].set_yticklabels(time_labels)
             self.axs[channel].grid()
             self.axs[channel].ticklabel_format(axis='x', useOffset=False)
