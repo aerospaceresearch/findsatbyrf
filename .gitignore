@@ -12,5 +12,5 @@ timeseries
 data*
 unneeded*
 test.*
-pixl*
+/findsat/pixl*
 unknown*
