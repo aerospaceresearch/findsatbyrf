@@ -1,0 +1,16 @@
+*.zip
+*.wav
+*.json
+*.png
+*.csv
+SDRSharp*
+__pycache__
+*.pyc
+*.pyc*
+*.gif
+timeseries
+data*
+unneeded*
+test.*
+pixl*
+unknown*
