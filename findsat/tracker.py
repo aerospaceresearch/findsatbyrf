@@ -5,17 +5,18 @@ from datetime import datetime
 
 class Signal:
     def __init__(self, metadata=None):
-        if metadata == None:
-            print("Loading initial input data from command-line and/or json failed")
-            raise SystemError
-
+        try:
+            if metadata == None:
+                raise Exception("Loading initial input data from command-line and/or json failed")
+        except Exception as error_message:
+            print(error_message)
+            raise      
         if metadata.signal_type == None:
             self.type = 'general'
         elif metadata.signal_type.lower() == 'noaa':
             self.type = 'NOAA'
         else:
             self.type = 'general'
-
         self.name = metadata.signal_name
         self.wav_path = metadata.input_file
         self.output_file = metadata.output_file
