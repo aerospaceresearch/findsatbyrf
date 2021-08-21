@@ -37,7 +37,7 @@ def channel_filter(mag, resolution, pass_step_width):
             if (i - channel_begin < pass_step_width):
                 mag[channel_begin:i] = 0
 
-def calculate_offset(input_mag):
+def calculate_offset(input_mag, filter_strength):
     #resolution = int(full_bandwidth/pass_bandwidth)
     resolution = 16            #Divide the kernel to 16 parts
     mag = np.empty(resolution)
@@ -46,7 +46,7 @@ def calculate_offset(input_mag):
         if np.any((value != 0)):
             mag[i] = np.mean(value)
             std[i] = np.std(value)
-    return - (np.min(mag) + 3*np.min(std))
+    return - (np.min(mag) + 3 * filter_strength * np.min(std))
 
 def lowpass_filter(centroids, step_timelength):
     sos = signal.butter(8, 0.02*step_timelength, output='sos')

@@ -34,6 +34,7 @@ class Signal:
         self.channel_count = 0
         self.sensitivity = metadata.sensitivity
         self.step_timelength = metadata.time_step
+        self.filter_strength = metadata.filter_strength
 
         (self.fs,
         self.step_framelength, 
@@ -74,7 +75,7 @@ class Signal:
             for channel in range(self.channel_count):
                 channel_kernel = 20 * np.log10(raw_freq_kernel[self.bandwidth_indices[channel]])
                 avg_mag = tools.avg_binning(channel_kernel, self.resolutions[channel])   
-                noise_offset = tools.calculate_offset(avg_mag)   
+                noise_offset = tools.calculate_offset(avg_mag, self.filter_strength)   
                 avg_mag += noise_offset
                 # channel_max = max(channel_max, np.max(avg_mag))
                 # if safety_factor != 0.:

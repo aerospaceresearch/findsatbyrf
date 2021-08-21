@@ -38,6 +38,7 @@ class Metadata:
         parser.add_argument("-bw3", "--bandwidth_3", type=float, action='store', metavar='frequency_in_Hz', help="Bandwidth of channel 3 (Hz)", default=None)
         parser.add_argument("-step", "--time_step", type=float, action='store', metavar='time_in_second', help="Length of each time step in second", default=1.0)
         parser.add_argument("-sen", "--sensitivity", type=float, action='store', metavar='frequency_in_Hz', help="Length of bin step in second", default=1.0)
+        parser.add_argument("-filter", "--filter_strength", type=float, action='store', metavar='float', help="strength of the filter compared to 1.", default=1.0)
         parser.add_argument("-tle", "--tle_prediction", action='store_true', help="Use prediction from TLE", default=False)
         parser.add_argument("-begin", "--time_begin", type=float, action='store', metavar='time_in_second', help="Time of begin of the segment to be analyzed", default=0.)
         parser.add_argument("-end", "--time_end", type=float, action='store', metavar='time_in_second', help="Time of end of the segment to be analyzed", default=None)
@@ -50,6 +51,7 @@ class Metadata:
         self.tle_prediction = args["tle_prediction"]
         self.time_begin = args["time_begin"]
         self.time_end = args["time_end"]
+        self.filter_strength = args["filter_strength"]
         if args["channel_0"] != None and args["bandwidth_0"] != None:
             self.channels.append((args["channel_0"], args["bandwidth_0"]))
         if args["channel_1"] != None and args["bandwidth_1"] != None:
