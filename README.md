@@ -87,4 +87,4 @@ python3 ./main.py -i /home/MyUser/MySignal.json -f ./MySatellite/MySignal.wav
 2. A .csv file storing the center position in the frequency domain by time.
 3. A .json file with a "header" object containing metadata of the signal and "signal_center" object containing centers of the signal for each channel by time.
 
-Both files are exported with name and directory as selected with the [-o] argument.
+All files are exported with name and directory as selected with the [-o] argument.

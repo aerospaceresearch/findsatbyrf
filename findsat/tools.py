@@ -68,9 +68,6 @@ def remove_outliers(centroids):
     cutoff = np.std(centroids)
     mean = np.mean(centroids)
     return np.clip(centroids, a_min=mean-cutoff*2, a_max=mean+cutoff*2)
-def peaking(kernel):
-    """Peak counting to determine the centroid of NOAA"""
-    pass
 
 class TLE:
     def __init__(self, signal_object):#data_path, time_of_record, total_step, step_timelength

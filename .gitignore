@@ -1,7 +1,7 @@
 *.zip
 *.wav
 *.json
-*.png
+/findsat/*.png
 *.csv
 SDRSharp*
 __pycache__

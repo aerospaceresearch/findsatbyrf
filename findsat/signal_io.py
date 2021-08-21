@@ -89,23 +89,32 @@ class Metadata:
             self.time_of_record = datetime.now()
         self.tle_data = None
         self.station_data = None
-        if len(self.channels) == 0 and ("default_channel" in json_data):
-            if len(json_data["default_channel"]) > 0:
-                for channel in json_data["default_channel"]:
-                    self.channels.append((channel["frequency"], channel["bandwidth"]))
-        else:
-            print("Channel information must be provided in the CLI or in the json input file.")
-            raise SystemError
-        if "tle" in json_data:
-            self.tle_data = json_data["tle"]
-        elif self.tle_prediction:
-            print("Tle information is not found in the json file")
-            raise SystemError
-        if "station" in json_data:
-            self.station_data = json_data["station"]
-        elif self.tle_prediction:
-            print("Station information is not found in the json file")
-            raise SystemError
+        try:
+            if len(self.channels) == 0 and ("default_channel" in json_data):
+                if len(json_data["default_channel"]) > 0:
+                    for channel in json_data["default_channel"]:
+                        self.channels.append((channel["frequency"], channel["bandwidth"]))
+            else:
+                raise Exception("Channel information must be provided in the CLI or in the json input file.")
+        except Exception as error_message:
+            print(error_message)
+            raise
+        try: 
+            if "tle" in json_data:
+                self.tle_data = json_data["tle"]
+            elif self.tle_prediction:
+                raise Exception("Tle information is not found in the json file")
+        except Exception as error_message:
+            print(error_message)
+            raise
+        try:
+            if "station" in json_data:
+                self.station_data = json_data["station"]
+            elif self.tle_prediction:
+                raise Exception("Station information is not found in the json file")
+        except Exception as error_message:
+            print(error_message)
+            raise
 
 def read_info_from_wav(wav_path, step_timelength, time_begin, time_end):
     with soundfile.SoundFile(wav_path, 'r') as f:
