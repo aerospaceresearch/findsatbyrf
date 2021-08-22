@@ -95,7 +95,7 @@ class Metadata:
         if "samplerate" in json_data["signal"]:
             self.samplerate = json_data["signal"]["samplerate"]
         else:
-            self.samplerate = None
+            self.samplerate = 2048000
 
         self.tle_data = None
         self.station_data = None
@@ -139,9 +139,9 @@ def read_info_from_wav(wav_path, step_timelength, time_begin, time_end):
 
     return fs, step_framelength, max_step, time_begin, time_end
 
-def read_info_from_bin(bin_path, step_timelength, time_begin, time_end):
+def read_info_from_bin(bin_path, step_timelength, time_begin, time_end, samplerate):
     f = np.memmap(bin_path, dtype=np.int, offset=0)
-    fs = 2400000
+    fs = samplerate
     step_framelength = int(step_timelength * fs)
     frames = len(f) * 2
     max_step = int(frames / step_framelength)

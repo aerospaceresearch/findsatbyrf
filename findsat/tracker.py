@@ -36,21 +36,27 @@ class Signal:
         self.step_timelength = metadata.time_step
         self.filter_strength = metadata.filter_strength
 
-        (self.fs,
-        self.step_framelength, 
-        self.max_step, 
-        self.time_begin, 
-        self.time_end) = io.read_info_from_wav(
-                            self.signal_path,
-                            self.step_timelength, 
-                            metadata.time_begin, 
-                            metadata.time_end)
-        # xxx
-        io.read_info_from_bin(
-            self.signal_path,
-            self.step_timelength,
-            metadata.time_begin,
-            metadata.time_end)
+        if self.signal_path.find(".wav") > -1:
+            (self.fs,
+            self.step_framelength,
+            self.max_step,
+            self.time_begin,
+            self.time_end) = io.read_info_from_wav(
+                                self.signal_path,
+                                self.step_timelength,
+                                metadata.time_begin,
+                                metadata.time_end)
+        else:
+            (self.fs,
+             self.step_framelength,
+             self.max_step,
+             self.time_begin,
+             self.time_end) = io.read_info_from_bin(
+                                 self.signal_path,
+                                 self.step_timelength,
+                                 metadata.time_begin,
+                                 metadata.time_end)
+
         self.full_freq = np.fft.fftfreq(int(self.fs * self.step_timelength), 1/(self.fs))
         self.total_step = int((self.time_end-self.time_begin)/self.step_timelength)
         
