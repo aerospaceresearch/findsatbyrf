@@ -136,11 +136,11 @@ def read_info_from_wav(wav_path, step_timelength, time_begin, time_end):
             time_begin = 0
         if (time_end == None) or (time_end * fs > f.frames):
             time_end = f.frames/fs
-        print(fs, step_framelength, step_timelength, max_step, time_begin, time_end, f.frames)
+
     return fs, step_framelength, max_step, time_begin, time_end
 
 def read_info_from_bin(bin_path, step_timelength, time_begin, time_end):
-    f = np.memmap(bin_path, dtype=np.int, offset=44)
+    f = np.memmap(bin_path, dtype=np.int, offset=0)
     fs = 2400000
     step_framelength = int(step_timelength * fs)
     frames = len(f) * 2
@@ -151,7 +151,6 @@ def read_info_from_bin(bin_path, step_timelength, time_begin, time_end):
     if (time_end == None) or (time_end * fs > frames):
         time_end = frames/fs
 
-    print(fs, step_framelength, step_timelength, max_step, time_begin, time_end, frames)
     del f
 
     return fs, step_framelength, max_step, time_begin, time_end
@@ -160,8 +159,9 @@ class WavReader:
     def __init__(self, signal_object):
         frame_begin = int(signal_object.time_begin * signal_object.fs)
         self.step_framelength = signal_object.step_framelength
-        self.reader = soundfile.SoundFile(signal_object.wav_path, 'r')
+        self.reader = soundfile.SoundFile(signal_object.signal_path, 'r')
         self.reader.seek(frame_begin)
+        self.step = 0
     def read_current_step(self):
         raw_time_data = self.reader.read(frames=self.step_framelength)
         return raw_time_data[:,0] + 1j * raw_time_data[:,1]
@@ -172,8 +172,8 @@ class BinReader:
     def __init__(self, signal_object):
         self.frame_begin = int(signal_object.time_begin * signal_object.fs)
         self.step_framelength = signal_object.step_framelength
-        self.reader = np.memmap(signal_object.wav_path, offset=44)
-        self.reader = -127.5 + self.reader
+        self.reader = np.memmap(signal_object.signal_path, offset=0)
+        self.reader = -127.5 + self.reader # only for 8bit rtlsdr
         self.step = 0
 
     def read_current_step(self):
@@ -182,7 +182,7 @@ class BinReader:
         return raw_time_data[0::2] + 1j * raw_time_data[1::2]
 
     def close(self):
-        self.reader.close()
+        pass
 
 class Csv:
     def __init__(self, signal_object, frequency_unit='kHz', type='w'):

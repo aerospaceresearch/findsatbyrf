@@ -18,7 +18,7 @@ class Signal:
         else:
             self.type = 'general'
         self.name = metadata.signal_name
-        self.wav_path = metadata.input_file
+        self.signal_path = metadata.input_file
         self.output_file = metadata.output_file
         self.center_frequency = metadata.signal_center_frequency
         self.time_of_record = metadata.time_of_record
@@ -41,13 +41,13 @@ class Signal:
         self.max_step, 
         self.time_begin, 
         self.time_end) = io.read_info_from_wav(
-                            self.wav_path, 
+                            self.signal_path,
                             self.step_timelength, 
                             metadata.time_begin, 
                             metadata.time_end)
         # xxx
         io.read_info_from_bin(
-            self.wav_path,
+            self.signal_path,
             self.step_timelength,
             metadata.time_begin,
             metadata.time_end)
@@ -72,8 +72,13 @@ class Signal:
 
     def find_centroids(self, peak_finding_range=None, safety_factor = 0.):
         self.centroids = np.empty((self.channel_count, self.total_step))
-        #reader = io.WavReader(self)
-        reader = io.BinReader(self)
+
+        if self.signal_path.find(".wav") > -1:
+            reader = io.WavReader(self)
+        else:
+            self
+            reader = io.BinReader(self)
+
         for step in range(self.total_step):
             print(f"Processing data... {step/self.total_step*100:.2f}%", end='\r')
             #time_data = reader.read_current_step()              # * np.hanning(self.step_framelength)
