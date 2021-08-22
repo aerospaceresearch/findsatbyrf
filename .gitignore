@@ -1,7 +1,9 @@
 *.zip
 *.wav
 *.json
-*.png
+*.txt
+/findsat/*.png
+*out.png
 *.csv
 SDRSharp*
 __pycache__
@@ -12,5 +14,5 @@ timeseries
 data*
 unneeded*
 test.*
-pixl*
+/findsat/pixl*
 unknown*

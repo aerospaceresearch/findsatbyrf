@@ -38,6 +38,7 @@ class Metadata:
         parser.add_argument("-bw3", "--bandwidth_3", type=float, action='store', metavar='frequency_in_Hz', help="Bandwidth of channel 3 (Hz)", default=None)
         parser.add_argument("-step", "--time_step", type=float, action='store', metavar='time_in_second', help="Length of each time step in second", default=1.0)
         parser.add_argument("-sen", "--sensitivity", type=float, action='store', metavar='frequency_in_Hz', help="Length of bin step in second", default=1.0)
+        parser.add_argument("-filter", "--filter_strength", type=float, action='store', metavar='float', help="Strength of the noise filter as ratio to 1.", default=1.0)
         parser.add_argument("-tle", "--tle_prediction", action='store_true', help="Use prediction from TLE", default=False)
         parser.add_argument("-begin", "--time_begin", type=float, action='store', metavar='time_in_second', help="Time of begin of the segment to be analyzed", default=0.)
         parser.add_argument("-end", "--time_end", type=float, action='store', metavar='time_in_second', help="Time of end of the segment to be analyzed", default=None)
@@ -45,9 +46,12 @@ class Metadata:
         self.input_file = os.path.abspath(args["input_file"])
         self.info_file = os.path.abspath(args["input_signal_info"])
         self.output_file = os.path.abspath(args["output_file"])
+        self.time_step = args["time_step"]
+        self.sensitivity = args["sensitivity"]
         self.tle_prediction = args["tle_prediction"]
         self.time_begin = args["time_begin"]
         self.time_end = args["time_end"]
+        self.filter_strength = args["filter_strength"]
         if args["channel_0"] != None and args["bandwidth_0"] != None:
             self.channels.append((args["channel_0"], args["bandwidth_0"]))
         if args["channel_1"] != None and args["bandwidth_1"] != None:
@@ -89,23 +93,32 @@ class Metadata:
             self.time_of_record = datetime.now()
         self.tle_data = None
         self.station_data = None
-        if len(self.channels) == 0 and ("default_channel" in json_data):
-            if len(json_data["default_channel"]) > 0:
-                for channel in json_data["default_channel"]:
-                    self.channels.append((channel["frequency"], channel["bandwidth"]))
-        else:
-            print("Channel information must be provided in the CLI or in the json input file.")
-            raise SystemError
-        if "tle" in json_data:
-            self.tle_data = json_data["tle"]
-        elif self.tle_prediction:
-            print("Tle information is not found in the json file")
-            raise SystemError
-        if "station" in json_data:
-            self.station_data = json_data["station"]
-        elif self.tle_prediction:
-            print("Station information is not found in the json file")
-            raise SystemError
+        try:
+            if len(self.channels) == 0 and ("default_channel" in json_data):
+                if len(json_data["default_channel"]) > 0:
+                    for channel in json_data["default_channel"]:
+                        self.channels.append((channel["frequency"], channel["bandwidth"]))
+            else:
+                raise Exception("Channel information must be provided in the CLI or in the json input file.")
+        except Exception as error_message:
+            print(error_message)
+            raise
+        try: 
+            if "tle" in json_data:
+                self.tle_data = json_data["tle"]
+            elif self.tle_prediction:
+                raise Exception("Tle information is not found in the json file")
+        except Exception as error_message:
+            print(error_message)
+            raise
+        try:
+            if "station" in json_data:
+                self.station_data = json_data["station"]
+            elif self.tle_prediction:
+                raise Exception("Station information is not found in the json file")
+        except Exception as error_message:
+            print(error_message)
+            raise
 
 def read_info_from_wav(wav_path, step_timelength, time_begin, time_end):
     with soundfile.SoundFile(wav_path, 'r') as f:
@@ -214,7 +227,7 @@ class Waterfall:
             self.axs = [self.axs]
         time_labels = [(signal_object.time_of_record + timedelta(seconds=step*signal_object.step_timelength)).strftime('%H:%M:%S') for step in range(0, signal_object.total_step+1, int(signal_object.total_step/10))]
         for channel in range(signal_object.channel_count):
-            self.axs[channel].set_yticks(range(0,self.total_step, int(self.total_step/10)))
+            self.axs[channel].set_yticks(range(0, self.total_step+1, int(self.total_step/10)))
             self.axs[channel].set_yticklabels(time_labels)
             self.axs[channel].grid()
             self.axs[channel].ticklabel_format(axis='x', useOffset=False)
@@ -238,7 +251,6 @@ class Waterfall:
         else:
             self.fig.suptitle(f"Centroid positions calculated from wav\n{signal_object.name} signal recorded on {signal_object.time_of_record.strftime('%Y-%m-%d')}")
 
-
     def save_all(self, centroids):
         for channel in range(self.channel_count):   
             actual_calculation = self.scale * (centroids[channel] + self.center_frequency)
@@ -246,17 +258,24 @@ class Waterfall:
                 prediction_from_TLE = self.scale * self.TLE.Doppler_prediction(channel, range(self.total_step))
                 self.axs[channel].plot(prediction_from_TLE, range(self.total_step), '.', color='blue', markersize = 1)
                 raw_error = (actual_calculation - prediction_from_TLE)/self.scale
-                temporal_noise = np.std(raw_error[~np.isnan(raw_error)])
-                for index, error in enumerate(raw_error):
-                    if not np.isnan(error) and np.abs(error) > 2*temporal_noise:
-                        actual_calculation[index] = np.nan
-                raw_error = (actual_calculation - prediction_from_TLE)/self.scale
-                raw_error = raw_error[~np.isnan(raw_error)]
-                standard_error = np.std(raw_error) / np.sqrt(np.size(raw_error))
-                print(f"Finished calculation for channel {channel}, Offset to prediction = {np.mean(raw_error)} Hz, Standard Error = {standard_error} Hz")
+                actual_signal = ~np.isnan(raw_error)
+                if len(actual_signal)==0:
+                    print("No signal is found for this channel")
+                else:
+                    temporal_noise = np.std(raw_error[actual_signal])
+                    for index, error in enumerate(raw_error):
+                        if not np.isnan(error) and np.abs(error) > 2*temporal_noise:
+                            actual_calculation[index] = np.nan
+                    raw_error = (actual_calculation - prediction_from_TLE)/self.scale
+                    actual_signal = ~np.isnan(raw_error)
+                    if len(actual_signal)==0:
+                        print("No signal is found for this channel")
+                    else:
+                        raw_error = raw_error[actual_signal]
+                        standard_error = np.std(raw_error) / np.sqrt(np.size(raw_error))
+                        print(f"Finished calculation for channel {channel}, Offset to prediction = {np.mean(raw_error)} Hz, Standard Error = {standard_error} Hz")
             self.axs[channel].plot(actual_calculation, range(self.total_step), '.', color='red', markersize = 1)
             
-
     def export(self, format='png'):
         self.fig.savefig(f"{self.save_path}.{format}", dpi=300)
         plt.close(self.fig)

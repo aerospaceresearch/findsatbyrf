@@ -5,17 +5,18 @@ from datetime import datetime
 
 class Signal:
     def __init__(self, metadata=None):
-        if metadata == None:
-            print("Loading initial input data from command-line and/or json failed")
-            raise SystemError
-
+        try:
+            if metadata == None:
+                raise Exception("Loading initial input data from command-line and/or json failed")
+        except Exception as error_message:
+            print(error_message)
+            raise      
         if metadata.signal_type == None:
             self.type = 'general'
         elif metadata.signal_type.lower() == 'noaa':
             self.type = 'NOAA'
         else:
             self.type = 'general'
-
         self.name = metadata.signal_name
         self.wav_path = metadata.input_file
         self.output_file = metadata.output_file
@@ -33,6 +34,7 @@ class Signal:
         self.channel_count = 0
         self.sensitivity = metadata.sensitivity
         self.step_timelength = metadata.time_step
+        self.filter_strength = metadata.filter_strength
 
         (self.fs,
         self.step_framelength, 
@@ -69,11 +71,10 @@ class Signal:
             print(f"Processing data... {step/self.total_step*100:.2f}%", end='\r')
             time_data = reader.read_current_step()              # * np.hanning(self.step_framelength)
             raw_freq_kernel = np.abs(np.fft.fft(time_data))
-            channel_max = 0
             for channel in range(self.channel_count):
                 channel_kernel = 20 * np.log10(raw_freq_kernel[self.bandwidth_indices[channel]])
                 avg_mag = tools.avg_binning(channel_kernel, self.resolutions[channel])   
-                noise_offset = tools.calculate_offset(avg_mag)   
+                noise_offset = tools.calculate_offset(avg_mag, self.filter_strength)   
                 avg_mag += noise_offset
                 # channel_max = max(channel_max, np.max(avg_mag))
                 # if safety_factor != 0.:
