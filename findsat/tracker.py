@@ -71,7 +71,6 @@ class Signal:
             print(f"Processing data... {step/self.total_step*100:.2f}%", end='\r')
             time_data = reader.read_current_step()              # * np.hanning(self.step_framelength)
             raw_freq_kernel = np.abs(np.fft.fft(time_data))
-            channel_max = 0
             for channel in range(self.channel_count):
                 channel_kernel = 20 * np.log10(raw_freq_kernel[self.bandwidth_indices[channel]])
                 avg_mag = tools.avg_binning(channel_kernel, self.resolutions[channel])   

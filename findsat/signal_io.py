@@ -38,7 +38,7 @@ class Metadata:
         parser.add_argument("-bw3", "--bandwidth_3", type=float, action='store', metavar='frequency_in_Hz', help="Bandwidth of channel 3 (Hz)", default=None)
         parser.add_argument("-step", "--time_step", type=float, action='store', metavar='time_in_second', help="Length of each time step in second", default=1.0)
         parser.add_argument("-sen", "--sensitivity", type=float, action='store', metavar='frequency_in_Hz', help="Length of bin step in second", default=1.0)
-        parser.add_argument("-filter", "--filter_strength", type=float, action='store', metavar='float', help="strength of the filter compared to 1.", default=1.0)
+        parser.add_argument("-filter", "--filter_strength", type=float, action='store', metavar='float', help="Strength of the noise filter as ratio to 1.", default=1.0)
         parser.add_argument("-tle", "--tle_prediction", action='store_true', help="Use prediction from TLE", default=False)
         parser.add_argument("-begin", "--time_begin", type=float, action='store', metavar='time_in_second', help="Time of begin of the segment to be analyzed", default=0.)
         parser.add_argument("-end", "--time_end", type=float, action='store', metavar='time_in_second', help="Time of end of the segment to be analyzed", default=None)
@@ -251,7 +251,6 @@ class Waterfall:
         else:
             self.fig.suptitle(f"Centroid positions calculated from wav\n{signal_object.name} signal recorded on {signal_object.time_of_record.strftime('%Y-%m-%d')}")
 
-
     def save_all(self, centroids):
         for channel in range(self.channel_count):   
             actual_calculation = self.scale * (centroids[channel] + self.center_frequency)
@@ -259,17 +258,24 @@ class Waterfall:
                 prediction_from_TLE = self.scale * self.TLE.Doppler_prediction(channel, range(self.total_step))
                 self.axs[channel].plot(prediction_from_TLE, range(self.total_step), '.', color='blue', markersize = 1)
                 raw_error = (actual_calculation - prediction_from_TLE)/self.scale
-                temporal_noise = np.std(raw_error[~np.isnan(raw_error)])
-                for index, error in enumerate(raw_error):
-                    if not np.isnan(error) and np.abs(error) > 2*temporal_noise:
-                        actual_calculation[index] = np.nan
-                raw_error = (actual_calculation - prediction_from_TLE)/self.scale
-                raw_error = raw_error[~np.isnan(raw_error)]
-                standard_error = np.std(raw_error) / np.sqrt(np.size(raw_error))
-                print(f"Finished calculation for channel {channel}, Offset to prediction = {np.mean(raw_error)} Hz, Standard Error = {standard_error} Hz")
+                actual_signal = ~np.isnan(raw_error)
+                if len(actual_signal)==0:
+                    print("No signal is found for this channel")
+                else:
+                    temporal_noise = np.std(raw_error[actual_signal])
+                    for index, error in enumerate(raw_error):
+                        if not np.isnan(error) and np.abs(error) > 2*temporal_noise:
+                            actual_calculation[index] = np.nan
+                    raw_error = (actual_calculation - prediction_from_TLE)/self.scale
+                    actual_signal = ~np.isnan(raw_error)
+                    if len(actual_signal)==0:
+                        print("No signal is found for this channel")
+                    else:
+                        raw_error = raw_error[actual_signal]
+                        standard_error = np.std(raw_error) / np.sqrt(np.size(raw_error))
+                        print(f"Finished calculation for channel {channel}, Offset to prediction = {np.mean(raw_error)} Hz, Standard Error = {standard_error} Hz")
             self.axs[channel].plot(actual_calculation, range(self.total_step), '.', color='red', markersize = 1)
             
-
     def export(self, format='png'):
         self.fig.savefig(f"{self.save_path}.{format}", dpi=300)
         plt.close(self.fig)

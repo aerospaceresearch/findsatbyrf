@@ -67,6 +67,7 @@ Simply use Python to run the file main.py with the following arguments:
 [-ch4 frequency_in_Hz] [-bw4 frequency_in_Hz] 
 [-step time_in_second]
 [-sen frequency_in_Hz] 
+[-filter float]
 [-tle] 
 [-begin time_in_second]
 [-end time_in_second]
@@ -81,6 +82,7 @@ With:
 * -bw0, -bw1, -bw2, -bw3: to input the bandwidth (in Hz) of up to 4 channels to be analyzed. Will overwrite the "default_channel" provided by the json file.
 * -step: to input the length in time (in second) of each time interval, defaults to 1.
 * -sen: to input the sensitivity, which is the width of each bin in the frequency kernel (in Hz) after FFT, defaults to 1.
+* -filter: to input the strength of the noise filter as ratio to 1. For example, filter of 1.1 means the noise filter is 1.1 times as strong, or 10% stronger than the default filter.
 * -begin: to input the time of begin of the segment to be analyzed, defaults to 1.
 * -end: to input the time of end of the segment to be analyzed, defaults to the end of the file.
 * -tle: used to turn on prediction based on Two-line elements (TLE) file, otherwise this function is off.
@@ -103,6 +105,9 @@ python3 ./main.py -i /home/MyUser/MySignal.json -f ./MySatellite/MySignal.wav
 4. On the command-line interface, if -tle is enabled, there will be information about the offset between the calculated frequencies from the wave file and from the tle file as well as the standard error of the signal compared to prediction. 
 
 All files are exported with name and directory as selected with the [-o] argument.
+
+## Test files:
+You can use the files [here](https://drive.google.com/drive/folders/1xJYhjG-9HT8RZG5PgqbY8jZbCk6mBn_r?usp=sharing) to test the code.
 
 # Description:
 
