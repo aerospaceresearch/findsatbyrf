@@ -22,6 +22,7 @@ class Metadata:
         self.sensitivity = 1.
         self.time_begin = 0.
         self.time_end = None
+        self.samplerate = 2048000
 
     def read_cli_arguments(self):
         parser = ArgumentParser()

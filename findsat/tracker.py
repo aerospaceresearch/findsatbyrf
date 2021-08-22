@@ -55,7 +55,8 @@ class Signal:
                                  self.signal_path,
                                  self.step_timelength,
                                  metadata.time_begin,
-                                 metadata.time_end)
+                                 metadata.time_end,
+                                 metadata.samplerate)
 
         self.full_freq = np.fft.fftfreq(int(self.fs * self.step_timelength), 1/(self.fs))
         self.total_step = int((self.time_end-self.time_begin)/self.step_timelength)
