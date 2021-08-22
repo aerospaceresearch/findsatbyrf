@@ -45,6 +45,12 @@ class Signal:
                             self.step_timelength, 
                             metadata.time_begin, 
                             metadata.time_end)
+        # xxx
+        io.read_info_from_bin(
+            self.wav_path,
+            self.step_timelength,
+            metadata.time_begin,
+            metadata.time_end)
         self.full_freq = np.fft.fftfreq(int(self.fs * self.step_timelength), 1/(self.fs))
         self.total_step = int((self.time_end-self.time_begin)/self.step_timelength)
         
@@ -66,10 +72,14 @@ class Signal:
 
     def find_centroids(self, peak_finding_range=None, safety_factor = 0.):
         self.centroids = np.empty((self.channel_count, self.total_step))
-        reader = io.WavReader(self)
+        #reader = io.WavReader(self)
+        reader = io.BinReader(self)
         for step in range(self.total_step):
             print(f"Processing data... {step/self.total_step*100:.2f}%", end='\r')
-            time_data = reader.read_current_step()              # * np.hanning(self.step_framelength)
+            #time_data = reader.read_current_step()              # * np.hanning(self.step_framelength)
+            reader.step = step
+            time_data = reader.read_current_step()
+
             raw_freq_kernel = np.abs(np.fft.fft(time_data))
             for channel in range(self.channel_count):
                 channel_kernel = 20 * np.log10(raw_freq_kernel[self.bandwidth_indices[channel]])

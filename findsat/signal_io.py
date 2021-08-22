@@ -91,6 +91,12 @@ class Metadata:
             self.time_of_record = datetime.strptime(json_data["signal"]["time_of_record"], "%Y-%m-%dT%H:%M:%S.%fZ")
         else:
             self.time_of_record = datetime.now()
+
+        if "samplerate" in json_data["signal"]:
+            self.samplerate = json_data["signal"]["samplerate"]
+        else:
+            self.samplerate = None
+
         self.tle_data = None
         self.station_data = None
         try:
@@ -130,6 +136,24 @@ def read_info_from_wav(wav_path, step_timelength, time_begin, time_end):
             time_begin = 0
         if (time_end == None) or (time_end * fs > f.frames):
             time_end = f.frames/fs
+        print(fs, step_framelength, step_timelength, max_step, time_begin, time_end, f.frames)
+    return fs, step_framelength, max_step, time_begin, time_end
+
+def read_info_from_bin(bin_path, step_timelength, time_begin, time_end):
+    f = np.memmap(bin_path, dtype=np.int, offset=44)
+    fs = 2400000
+    step_framelength = int(step_timelength * fs)
+    frames = len(f) * 2
+    max_step = int(frames / step_framelength)
+
+    if time_begin < 0:
+        time_begin = 0
+    if (time_end == None) or (time_end * fs > frames):
+        time_end = frames/fs
+
+    print(fs, step_framelength, step_timelength, max_step, time_begin, time_end, frames)
+    del f
+
     return fs, step_framelength, max_step, time_begin, time_end
 
 class WavReader:
@@ -141,6 +165,22 @@ class WavReader:
     def read_current_step(self):
         raw_time_data = self.reader.read(frames=self.step_framelength)
         return raw_time_data[:,0] + 1j * raw_time_data[:,1]
+    def close(self):
+        self.reader.close()
+
+class BinReader:
+    def __init__(self, signal_object):
+        self.frame_begin = int(signal_object.time_begin * signal_object.fs)
+        self.step_framelength = signal_object.step_framelength
+        self.reader = np.memmap(signal_object.wav_path, offset=44)
+        self.reader = -127.5 + self.reader
+        self.step = 0
+
+    def read_current_step(self):
+        raw_time_data = self.reader[self.frame_begin + self.step_framelength * 2 * (self.step+0):
+                                    self.frame_begin + self.step_framelength * 2 * (self.step+1)]
+        return raw_time_data[0::2] + 1j * raw_time_data[1::2]
+
     def close(self):
         self.reader.close()
 
