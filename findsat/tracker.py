@@ -96,8 +96,9 @@ class Signal:
             waterfall = io.Waterfall(self, tle_prediction = self.tle_prediction)
             waterfall.save_all(self.centroids)
             waterfall.export()
-        except:
+        except Exception as error:
             print("Failed to create center vs time graph output")
+            print(error)
         try:
             csv = io.Csv(self)
             csv.save_all(self.centroids)
@@ -109,8 +110,9 @@ class Signal:
             json = io.Json(self)
             json.save_all(self.centroids)
             json.export()
-        except:
+        except Exception as error:
             print("Failed to create json output")
+            print(error)
         print(f"Processing data... 100.00%", end='\r\n')
 
     def process(self, default=True, filter=False, peak_finding_range=None, safety_factor = 0.):

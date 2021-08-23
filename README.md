@@ -67,7 +67,8 @@ Simply use Python to run the file [main.py](findsat/main.py) with the following 
 [-ch4 frequency_in_Hz] [-bw4 frequency_in_Hz] 
 [-step time_in_second]
 [-sen frequency_in_Hz] 
-[-filter float]
+[-filter ratio_to_1]
+[-fs samples_per_second]
 [-tle] 
 [-begin time_in_second]
 [-end time_in_second]
@@ -83,7 +84,7 @@ With:
 * -step: to input the length in time (in second) of each time interval, defaults to 1.
 * -sen: to input the sensitivity, which is the width of each bin in the frequency kernel (in Hz) after FFT, defaults to 1.
 * -filter: to input the strength of the noise filter as ratio to 1. For example, filter of 1.1 means the noise filter is 1.1 times as strong, or 10% stronger than the default filter.
-* -fs: to input the samplerate of the file, will overwrite default values provided by json.
+* -fs: to input the samplerate of the file, will overwrite default samplerate provided by json, needed for RAW files.
 * -begin: to input the time of begin of the segment to be analyzed, defaults to 1.
 * -end: to input the time of end of the segment to be analyzed, defaults to the end of the file.
 * -tle: used to turn on prediction based on Two-line elements (TLE) file, otherwise this function is off.
