@@ -88,8 +88,16 @@ class Metadata:
         else:
             self.signal_type = None
         self.signal_center_frequency = json_data["signal"]["center_frequency"]
-        if "time_of_record" in json_data["signal"]:
-            self.time_of_record = datetime.strptime(json_data["signal"]["time_of_record"], "%Y-%m-%dT%H:%M:%S.%fZ")
+        if "time_of_record" in json_data["signal"] or "timestamp_of_record" in json_data["signal"]:
+            if "time_of_record" in json_data["signal"]:
+                self.time_of_record = datetime.strptime(json_data["signal"]["time_of_record"], "%Y-%m-%dT%H:%M:%S.%fZ")
+
+            if "timestamp_of_record" in json_data["signal"]:
+                # preferred, even more prefeered in astropy format
+                utc_time = datetime.utcfromtimestamp(json_data["signal"]["timestamp_of_record"])
+                #utc_time = datetime.strftime("%Y-%m-%d %H:%M:%S.%f")
+                self.time_of_record = utc_time
+
         else:
             self.time_of_record = datetime.now()
 
@@ -153,7 +161,6 @@ def read_info_from_bin(bin_path, step_timelength, time_begin, time_end, samplera
         time_end = frames/fs/2
 
     del f
-    print(fs, step_framelength, max_step, time_begin, time_end)
 
     return fs, step_framelength, max_step, time_begin, time_end
 
