@@ -1,6 +1,8 @@
 from tracker import Signal
 from signal_io import Metadata
 from datetime import datetime
+# import warnings
+# warnings.filterwarnings("error")
 
 def main():
     print("Initializing... ")   

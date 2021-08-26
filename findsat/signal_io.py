@@ -41,7 +41,7 @@ class Metadata:
         parser.add_argument("-step", "--time_step", type=float, action='store', metavar='time_in_second', help="Length of each time step in second", default=1.0)
         parser.add_argument("-sen", "--sensitivity", type=float, action='store', metavar='frequency_in_Hz', help="Length of bin step in second", default=1.0)
         parser.add_argument("-filter", "--filter_strength", type=float, action='store', metavar='ratio_to_1', help="Strength of the noise filter as ratio to 1.", default=1.0)
-        parser.add_argument("-fs", "--samplerate", type=float, action='store', metavar='samples_per_second', help="Sampling rate of the file, will overwrite default samplerate, needed for RAW files.", default=None)
+        parser.add_argument("-fs", "--samplerate", type=int, action='store', metavar='samples_per_second', help="Sampling rate of the file, will overwrite default samplerate, needed for RAW files.", default=None)
         parser.add_argument("-tle", "--tle_prediction", action='store_true', help="Use prediction from TLE", default=False)
         parser.add_argument("-begin", "--time_begin", type=float, action='store', metavar='time_in_second', help="Time of begin of the segment to be analyzed", default=0.)
         parser.add_argument("-end", "--time_end", type=float, action='store', metavar='time_in_second', help="Time of end of the segment to be analyzed", default=None)
@@ -133,7 +133,7 @@ def read_info_from_wav(wav_path, step_timelength, time_begin, time_end, fs):
     if fs == None:
         f = soundfile.SoundFile(wav_path, 'r')
     else:
-        f = soundfile.SoundFile(wav_path, 'r', samplerate=fs, channels=2, subtype='FLOAT')
+        f = soundfile.SoundFile(wav_path, 'r', samplerate=fs, channels=2, subtype='PCM_U8')
     fs= f.samplerate
     step_framelength = int(step_timelength * fs)
     max_step = int(f.frames / step_framelength) 
@@ -148,14 +148,17 @@ class WavReader:
     def __init__(self, signal_object):
         frame_begin = int(signal_object.time_begin * signal_object.fs)
         self.step_framelength = signal_object.step_framelength
-        if signal_object.raw_input:
-            self.reader = soundfile.SoundFile(signal_object.wav_path, 'r', samplerate=signal_object.fs, channels=2, subtype='FLOAT')
+        self.raw_input = signal_object.raw_input
+        if self.raw_input:
+            self.reader = soundfile.SoundFile(signal_object.wav_path, 'r', samplerate=signal_object.fs, channels=2, subtype='PCM_U8')
         else:
             self.reader = soundfile.SoundFile(signal_object.wav_path, 'r')
         self.reader.seek(frame_begin)
+
     def read_current_step(self):
         raw_time_data = self.reader.read(frames=self.step_framelength)
         return raw_time_data[:,0] + 1j * raw_time_data[:,1]
+
     def close(self):
         self.reader.close()
 
@@ -271,11 +274,11 @@ class Waterfall:
                             actual_calculation[index] = np.nan
                     raw_error = (actual_calculation - prediction_from_TLE)/self.scale
                     actual_signal = ~np.isnan(raw_error)
-                    if len(actual_signal)==0:
+                    raw_error = raw_error[actual_signal]
+                    if len(raw_error)==0:
                         print("No signal is found for this channel")
                     else:
-                        raw_error = raw_error[actual_signal]
-                        standard_error = np.std(raw_error) / np.sqrt(np.size(raw_error))
+                        standard_error = np.std(raw_error, ddof=1) / np.sqrt(np.size(raw_error))                    
                         print(f"Finished calculation for channel {channel}, Offset to prediction = {np.mean(raw_error)} Hz, Standard Error = {standard_error} Hz")
             self.axs[channel].plot(actual_calculation, range(self.total_step), '.', color='red', markersize = 1)
             
