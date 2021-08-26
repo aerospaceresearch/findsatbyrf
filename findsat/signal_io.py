@@ -141,18 +141,19 @@ def read_info_from_wav(wav_path, step_timelength, time_begin, time_end):
     return fs, step_framelength, max_step, time_begin, time_end
 
 def read_info_from_bin(bin_path, step_timelength, time_begin, time_end, samplerate):
-    f = np.memmap(bin_path, dtype=np.int, offset=0)
+    f = np.memmap(bin_path, offset=0)
     fs = samplerate
     step_framelength = int(step_timelength * fs)
-    frames = len(f) * 2
-    max_step = int(frames / step_framelength)
+    frames = len(f)
+    max_step = int(frames / step_framelength / 2)
 
     if time_begin < 0:
         time_begin = 0
     if (time_end == None) or (time_end * fs > frames):
-        time_end = frames/fs
+        time_end = frames/fs/2
 
     del f
+    print(fs, step_framelength, max_step, time_begin, time_end)
 
     return fs, step_framelength, max_step, time_begin, time_end
 
@@ -295,6 +296,7 @@ class Waterfall:
     def save_all(self, centroids):
         for channel in range(self.channel_count):   
             actual_calculation = self.scale * (centroids[channel] + self.center_frequency)
+            print(len(centroids[channel]))
             if self.tle_prediction:
                 prediction_from_TLE = self.scale * self.TLE.Doppler_prediction(channel, range(self.total_step))
                 self.axs[channel].plot(prediction_from_TLE, range(self.total_step), '.', color='blue', markersize = 1)
