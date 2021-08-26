@@ -8,7 +8,6 @@ def main():
     metadata.read_cli_arguments()
     metadata.read_info_file()
     signal = Signal(metadata=metadata)
-
     start_time = datetime.now()
     signal.process(default=True)
     print(f"Finished in {datetime.now() - start_time}")        
