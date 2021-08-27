@@ -1,5 +1,3 @@
-from scipy import signal
-from scipy.io import wavfile
 import matplotlib.pyplot as plt
 import os
 import csv, json
@@ -21,7 +19,10 @@ class Metadata:
         self.time_step = 1.
         self.sensitivity = 1.
         self.time_begin = 0.
+        self.filter_strength = 1.
         self.time_end = None
+        self.samplerate = None
+        self.raw_input = False
 
     def read_cli_arguments(self):
         parser = ArgumentParser()
@@ -38,7 +39,8 @@ class Metadata:
         parser.add_argument("-bw3", "--bandwidth_3", type=float, action='store', metavar='frequency_in_Hz', help="Bandwidth of channel 3 (Hz)", default=None)
         parser.add_argument("-step", "--time_step", type=float, action='store', metavar='time_in_second', help="Length of each time step in second", default=1.0)
         parser.add_argument("-sen", "--sensitivity", type=float, action='store', metavar='frequency_in_Hz', help="Length of bin step in second", default=1.0)
-        parser.add_argument("-filter", "--filter_strength", type=float, action='store', metavar='float', help="Strength of the noise filter as ratio to 1.", default=1.0)
+        parser.add_argument("-filter", "--filter_strength", type=float, action='store', metavar='ratio_to_1', help="Strength of the noise filter as ratio to 1.", default=1.0)
+        parser.add_argument("-fs", "--samplerate", type=int, action='store', metavar='samples_per_second', help="Sampling rate of the file, will overwrite default samplerate, needed for RAW files.", default=None)
         parser.add_argument("-tle", "--tle_prediction", action='store_true', help="Use prediction from TLE", default=False)
         parser.add_argument("-begin", "--time_begin", type=float, action='store', metavar='time_in_second', help="Time of begin of the segment to be analyzed", default=0.)
         parser.add_argument("-end", "--time_end", type=float, action='store', metavar='time_in_second', help="Time of end of the segment to be analyzed", default=None)
@@ -52,6 +54,7 @@ class Metadata:
         self.time_begin = args["time_begin"]
         self.time_end = args["time_end"]
         self.filter_strength = args["filter_strength"]
+        self.samplerate = args["samplerate"]
         if args["channel_0"] != None and args["bandwidth_0"] != None:
             self.channels.append((args["channel_0"], args["bandwidth_0"]))
         if args["channel_1"] != None and args["bandwidth_1"] != None:
@@ -87,10 +90,25 @@ class Metadata:
         else:
             self.signal_type = None
         self.signal_center_frequency = json_data["signal"]["center_frequency"]
-        if "time_of_record" in json_data["signal"]:
-            self.time_of_record = datetime.strptime(json_data["signal"]["time_of_record"], "%Y-%m-%dT%H:%M:%S.%fZ")
+        if "time_of_record" in json_data["signal"] or "timestamp_of_record" in json_data["signal"]:
+            if "time_of_record" in json_data["signal"]:
+                self.time_of_record = datetime.strptime(json_data["signal"]["time_of_record"], "%Y-%m-%dT%H:%M:%S.%fZ")
+
+            if "timestamp_of_record" in json_data["signal"]:
+                # preferred, even more prefeered in astropy format
+                utc_time = datetime.utcfromtimestamp(json_data["signal"]["timestamp_of_record"])
+                #utc_time = datetime.strftime("%Y-%m-%d %H:%M:%S.%f")
+                self.time_of_record = utc_time
+
         else:
             self.time_of_record = datetime.now()
+
+        if (self.samplerate == None) and ("samplerate" in json_data["signal"]):
+            self.samplerate = json_data["signal"]["samplerate"]
+        if self.samplerate != None:
+            print(f"You have provided samplerate={self.samplerate}, make sure your input file is RAW.")
+            self.raw_input = True
+
         self.tle_data = None
         self.station_data = None
         try:
@@ -125,34 +143,63 @@ def read_info_from_wav(wav_path, step_timelength, time_begin, time_end):
         fs= f.samplerate
         step_framelength = int(step_timelength * fs)
         max_step = int(f.frames / step_framelength) 
-        f.subtype
         if time_begin < 0:
             time_begin = 0
         if (time_end == None) or (time_end * fs > f.frames):
             time_end = f.frames/fs
     return fs, step_framelength, max_step, time_begin, time_end
 
+def read_info_from_bin(bin_path, step_timelength, time_begin, time_end, samplerate):
+    f = np.memmap(bin_path, offset=0)
+    fs = samplerate
+    step_framelength = int(step_timelength * fs)
+    frames = len(f)
+    max_step = int(frames / step_framelength / 2)
+    if time_begin < 0:
+        time_begin = 0
+    if (time_end == None) or (time_end * fs > frames):
+        time_end = frames/fs/2
+    del f
+    return fs, step_framelength, max_step, time_begin, time_end
+  
+def read_info_from_data_file(file_path, step_timelength, time_begin, time_end, raw_input, samplerate):
+    if raw_input:
+        return read_info_from_bin(file_path, step_timelength, time_begin, time_end, samplerate)
+    else:
+        return read_info_from_wav(wav_path, step_timelength, time_begin, time_end)
+      
 class WavReader:
     def __init__(self, signal_object):
         frame_begin = int(signal_object.time_begin * signal_object.fs)
         self.step_framelength = signal_object.step_framelength
-        self.reader = soundfile.SoundFile(signal_object.wav_path, 'r')
+        self.reader = soundfile.SoundFile(signal_object.signal_path, 'r')
         self.reader.seek(frame_begin)
+        self.step = 0
+
     def read_current_step(self):
         raw_time_data = self.reader.read(frames=self.step_framelength)
         return raw_time_data[:,0] + 1j * raw_time_data[:,1]
+
     def close(self):
         self.reader.close()
 
+class BinReader:
+    def __init__(self, signal_object):
+        self.frame_begin = int(signal_object.time_begin * signal_object.fs)
+        self.step_framelength = signal_object.step_framelength
+        self.reader = np.memmap(signal_object.signal_path, offset=0)
+        self.step = 0
+
+    def read_current_step(self):
+        raw_time_data = self.reader[self.frame_begin + self.step_framelength * 2 * (self.step+0):
+                                    self.frame_begin + self.step_framelength * 2 * (self.step+1)]
+        return (-127.5 + raw_time_data[0::2]) + 1j * (-127.5 + raw_time_data[1::2]) ## only for 8bit rtlsdr
+
+    def close(self):
+        pass
+
 class Csv:
-    def __init__(self, signal_object, frequency_unit='kHz', type='w'):
-        if frequency_unit.lower() == 'hz':
-            self.scale = 1
-        elif frequency_unit.lower() == 'mhz':
-            self.scale = 1e-6
-        else:
-            self.scale = 1e-3                                    #Transform Hz to kHz
-            frequency_unit = 'kHz'
+    def __init__(self, signal_object):
         self.output_file = signal_object.output_file+".csv"
         self.file = open(self.output_file, 'w', newline='')
         self.reader = csv.writer(self.file)
@@ -165,17 +212,12 @@ class Csv:
         self.channel_count = signal_object.channel_count
         self.time_labels = [(signal_object.time_of_record + timedelta(seconds=step*signal_object.step_timelength)).strftime('%H:%M:%S.%f') for step in range(0, signal_object.total_step)]
 
-    def save_step(self, step, centroids):
-        data = [self.time_labels[step]]
-        for channel in range(self.channel_count):
-            data.append(centroids[channel])
-        self.reader.writerow(data)
-
     def save_all(self, centroids):
         for step in range(self.total_step):
             data = [self.time_labels[step]]
             for channel in range(self.channel_count):
-                data.append(self.scale * (centroids[channel, step] + self.center_frequency))
+                centroid = None if np.isnan(centroids[channel, step]) else centroids[channel, step] + self.center_frequency
+                data.append(centroid)
             self.reader.writerow(data)            
     
     def export(self):
@@ -204,7 +246,7 @@ class Json:
         for channel in range(self.channel_count):
             self.data_to_dump['signal_center'][f"ch_{channel}"] = {}
             for step in range(self.total_step):
-                self.data_to_dump['signal_center'][f"ch_{channel}"][self.time_labels[step]] = centroids[channel, step] + self.center_frequency
+                self.data_to_dump['signal_center'][f"ch_{channel}"][self.time_labels[step]] = None if np.isnan(centroids[channel, step]) else centroids[channel, step] + self.center_frequency
         json.dump(self.data_to_dump, self.file, indent=4)
     
     def export(self):
@@ -254,26 +296,34 @@ class Waterfall:
     def save_all(self, centroids):
         for channel in range(self.channel_count):   
             actual_calculation = self.scale * (centroids[channel] + self.center_frequency)
+
             if self.tle_prediction:
                 prediction_from_TLE = self.scale * self.TLE.Doppler_prediction(channel, range(self.total_step))
                 self.axs[channel].plot(prediction_from_TLE, range(self.total_step), '.', color='blue', markersize = 1)
                 raw_error = (actual_calculation - prediction_from_TLE)/self.scale
                 actual_signal = ~np.isnan(raw_error)
+
                 if len(actual_signal)==0:
                     print("No signal is found for this channel")
                 else:
                     temporal_noise = np.std(raw_error[actual_signal])
-                    for index, error in enumerate(raw_error):
-                        if not np.isnan(error) and np.abs(error) > 2*temporal_noise:
-                            actual_calculation[index] = np.nan
+
+                    #for index, error in enumerate(raw_error):
+                    #    print(index, error)
+                    #    if not np.isnan(error) and np.abs(error) > 2*temporal_noise:
+                    #        print("if")
+                    #        actual_calculation[index] = np.nan
+
                     raw_error = (actual_calculation - prediction_from_TLE)/self.scale
                     actual_signal = ~np.isnan(raw_error)
-                    if len(actual_signal)==0:
+
+                    raw_error = raw_error[actual_signal]
+                    if len(raw_error)==0:
                         print("No signal is found for this channel")
                     else:
-                        raw_error = raw_error[actual_signal]
-                        standard_error = np.std(raw_error) / np.sqrt(np.size(raw_error))
+                        standard_error = np.std(raw_error, ddof=1) / np.sqrt(np.size(raw_error))                    
                         print(f"Finished calculation for channel {channel}, Offset to prediction = {np.mean(raw_error)} Hz, Standard Error = {standard_error} Hz")
+
             self.axs[channel].plot(actual_calculation, range(self.total_step), '.', color='red', markersize = 1)
             
     def export(self, format='png'):
