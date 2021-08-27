@@ -182,13 +182,12 @@ class BinReader:
         self.frame_begin = int(signal_object.time_begin * signal_object.fs)
         self.step_framelength = signal_object.step_framelength
         self.reader = np.memmap(signal_object.signal_path, offset=0)
-        self.reader = -127.5 + self.reader # only for 8bit rtlsdr
         self.step = 0
 
     def read_current_step(self):
         raw_time_data = self.reader[self.frame_begin + self.step_framelength * 2 * (self.step+0):
                                     self.frame_begin + self.step_framelength * 2 * (self.step+1)]
-        return raw_time_data[0::2] + 1j * raw_time_data[1::2]
+        return (-127.5 + raw_time_data[0::2]) + 1j * (-127.5 + raw_time_data[1::2]) ## only for 8bit rtlsdr
 
     def close(self):
         pass
@@ -303,27 +302,34 @@ class Waterfall:
     def save_all(self, centroids):
         for channel in range(self.channel_count):   
             actual_calculation = self.scale * (centroids[channel] + self.center_frequency)
-            print(len(centroids[channel]))
+
             if self.tle_prediction:
                 prediction_from_TLE = self.scale * self.TLE.Doppler_prediction(channel, range(self.total_step))
                 self.axs[channel].plot(prediction_from_TLE, range(self.total_step), '.', color='blue', markersize = 1)
                 raw_error = (actual_calculation - prediction_from_TLE)/self.scale
                 actual_signal = ~np.isnan(raw_error)
+
                 if len(actual_signal)==0:
                     print("No signal is found for this channel")
                 else:
                     temporal_noise = np.std(raw_error[actual_signal])
-                    for index, error in enumerate(raw_error):
-                        if not np.isnan(error) and np.abs(error) > 2*temporal_noise:
-                            actual_calculation[index] = np.nan
+
+                    #for index, error in enumerate(raw_error):
+                    #    print(index, error)
+                    #    if not np.isnan(error) and np.abs(error) > 2*temporal_noise:
+                    #        print("if")
+                    #        actual_calculation[index] = np.nan
+
                     raw_error = (actual_calculation - prediction_from_TLE)/self.scale
                     actual_signal = ~np.isnan(raw_error)
+
                     if len(actual_signal)==0:
                         print("No signal is found for this channel")
                     else:
                         raw_error = raw_error[actual_signal]
                         standard_error = np.std(raw_error) / np.sqrt(np.size(raw_error))
                         print(f"Finished calculation for channel {channel}, Offset to prediction = {np.mean(raw_error)} Hz, Standard Error = {standard_error} Hz")
+
             self.axs[channel].plot(actual_calculation, range(self.total_step), '.', color='red', markersize = 1)
             
     def export(self, format='png'):
