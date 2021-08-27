@@ -1,5 +1,6 @@
 *.zip
 *.wav
+*binary*
 *.json
 *.txt
 /findsat/*.png

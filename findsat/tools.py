@@ -54,8 +54,8 @@ def lowpass_filter(centroids, step_timelength):
 
 def peak_finding(freq_domain, mag_domain, centroid, range = 1e3):
     if np.isnan(centroid):
-        return NaN # this causes problems with -tle
-    local_region_indices = np.where(np.logical_and(freq_domain> centroid - range/2, freq_domain < centroid + range/2))          #Search for peaks in +- 1kHz around the centroid
+        return NaN
+    local_region_indices = np.where(np.logical_and(freq_domain> centroid - range/2, freq_domain < centroid + range/2))          #Search for peaks in +- 0.5 kHz around the centroid
     local_mag = mag_domain[local_region_indices]
     if np.all((local_mag == 0)):
         return NaN # this causes problems with -tle

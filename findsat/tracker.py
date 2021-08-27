@@ -35,28 +35,19 @@ class Signal:
         self.sensitivity = metadata.sensitivity
         self.step_timelength = metadata.time_step
         self.filter_strength = metadata.filter_strength
+        self.raw_input = metadata.raw_input
 
-        if self.signal_path.find(".wav") > -1:
-            (self.fs,
-            self.step_framelength,
-            self.max_step,
-            self.time_begin,
-            self.time_end) = io.read_info_from_wav(
-                                self.signal_path,
-                                self.step_timelength,
-                                metadata.time_begin,
-                                metadata.time_end)
-        else:
-            (self.fs,
-             self.step_framelength,
-             self.max_step,
-             self.time_begin,
-             self.time_end) = io.read_info_from_bin(
-                                 self.signal_path,
-                                 self.step_timelength,
-                                 metadata.time_begin,
-                                 metadata.time_end,
-                                 metadata.samplerate)
+        (self.fs,
+        self.step_framelength, 
+        self.max_step, 
+        self.time_begin, 
+        self.time_end) = io.read_info_from_data_file(
+                            self.signal_path, 
+                            self.step_timelength, 
+                            metadata.time_begin, 
+                            metadata.time_end,
+                            self.raw_input,
+                            metadata.samplerate)
 
         self.full_freq = np.fft.fftfreq(int(self.fs * self.step_timelength), 1/(self.fs))
         self.total_step = int((self.time_end-self.time_begin)/self.step_timelength)
@@ -80,11 +71,10 @@ class Signal:
     def find_centroids(self, peak_finding_range=None, safety_factor = 0.):
         self.centroids = np.empty((self.channel_count, self.total_step))
 
-        if self.signal_path.find(".wav") > -1:
-            reader = io.WavReader(self)
-        else:
-            self
+        if self.raw_input:
             reader = io.BinReader(self)
+        else:
+            reader = io.WavReader(self)
 
         for step in range(self.total_step):
             print(f"Processing data... {step/self.total_step*100:.2f}%", end='\r')
@@ -109,18 +99,30 @@ class Signal:
         reader.close()
 
     def export(self, filter=False):
-        waterfall = io.Waterfall(self, tle_prediction = self.tle_prediction)
-        csv = io.Csv(self)
-        json = io.Json(self)
         if filter:   
             for channel in range(self.channel_count):
                 self.centroids[channel] = tools.lowpass_filter(self.centroids[channel], self.step_timelength)
-        waterfall.save_all(self.centroids)
-        csv.save_all(self.centroids)
-        json.save_all(self.centroids)
-        waterfall.export()
-        csv.export()
-        json.export()
+        try:
+            waterfall = io.Waterfall(self, tle_prediction = self.tle_prediction)
+            waterfall.save_all(self.centroids)
+            waterfall.export()
+        except Exception as error:
+            print("Failed to create center vs time graph output")
+            print(error)
+        try:
+            csv = io.Csv(self)
+            csv.save_all(self.centroids)
+            csv.export()
+        except Exception as error:
+            print("Failed to create csv output")
+            print(error)
+        try:
+            json = io.Json(self)
+            json.save_all(self.centroids)
+            json.export()
+        except Exception as error:
+            print("Failed to create json output")
+            print(error)
         print(f"Processing data... 100.00%", end='\r\n')
 
     def process(self, default=True, filter=False, peak_finding_range=None, safety_factor = 0.):
