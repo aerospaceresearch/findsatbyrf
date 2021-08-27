@@ -1,7 +1,7 @@
 # Overview:
 This program finds the center in the frequency domain of a signal by time.
 
-Every major work on this repository is done by [Binh-Minh Tran-Huu](https://www.linkedin.com/in/tranhuubinhminh/) under instructions and monitor from mentor [Andreas Hornig](https://www.linkedin.com/in/andreas-hornig-253b2818/) of [Aerospaceresearch.net](https://aerospaceresearch.net/) as [a project participated in Google Summer of Code 2021](https://summerofcode.withgoogle.com/projects/#5393798554714112).
+Most major work on this repository is done by [Binh-Minh Tran-Huu](https://www.linkedin.com/in/tranhuubinhminh/) under instructions, monitor and help from mentor [Andreas Hornig](https://www.linkedin.com/in/andreas-hornig-253b2818/) of [Aerospaceresearch.net](https://aerospaceresearch.net/) as [a project participated in Google Summer of Code 2021](https://summerofcode.withgoogle.com/projects/#5393798554714112).
 
 # Usage:
 

@@ -5,7 +5,7 @@ import numpy as np
 import datetime
 import soundfile
 import tools
-from datetime import datetime, time, timedelta
+from datetime import datetime, timedelta
 from argparse import ArgumentParser
 # PATH=os.path.dirname(__file__)+'/'
 
@@ -166,7 +166,7 @@ def read_info_from_data_file(file_path, step_timelength, time_begin, time_end, r
     if raw_input:
         return read_info_from_bin(file_path, step_timelength, time_begin, time_end, samplerate)
     else:
-        return read_info_from_wav(wav_path, step_timelength, time_begin, time_end)
+        return read_info_from_wav(file_path, step_timelength, time_begin, time_end)
       
 class WavReader:
     def __init__(self, signal_object):
