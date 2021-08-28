@@ -23,6 +23,7 @@ class Metadata:
         self.time_end = None
         self.samplerate = None
         self.raw_input = False
+        self.sdr_ppm = 0.0
 
     def read_cli_arguments(self):
         parser = ArgumentParser()
@@ -117,6 +118,15 @@ class Metadata:
         if self.samplerate != None:
             print(f"You have provided samplerate = {self.samplerate}, make sure your input file is raw (.dat/.bin/.raw).")
             self.raw_input = True
+
+        if "sdr_ppm" in json_data["signal"]:
+            self.sdr_ppm = json_data["signal"]["sdr_ppm"]
+        else:
+            self.sdr_ppm = 0.0
+
+        for c in range(len(self.channels)):
+            # correcting the channel frequencies when it is changed due to the ppm difference in sdr oscilator
+            self.channels[c] = self.channels[c] - self.sdr_ppm * self.channels[c] / 1000000.0 # parts per million
 
         self.tle_data = None
         self.station_data = None
