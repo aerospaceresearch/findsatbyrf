@@ -55,6 +55,7 @@ class Metadata:
         self.time_end = args["time_end"]
         self.filter_strength = args["filter_strength"]
         self.samplerate = args["samplerate"]
+
         if args["channel_0"] != None and args["bandwidth_0"] != None:
             self.channels.append((args["channel_0"], args["bandwidth_0"]))
         if args["channel_1"] != None and args["bandwidth_1"] != None:
@@ -71,13 +72,21 @@ class Metadata:
             time_begin = "1. second"
         else:
             time_begin = f"{self.time_begin} seconds"
+        
+        if float(self.time_step) == 1.:
+            time_step = "1. second"
+        else:
+            time_step = f"{self.time_begin} seconds"
+
         if self.time_end == None:
             time_end = "the end"
         elif float(self.time_end) == 1.:
             time_end = "1. second"
         else:
-            time_end = f"{self.time_end} seconds"
-        print(f"Reading signal file from {self.input_file} from {time_begin} to {time_end} with time step of {self.time_step} seconds and frequency bin of {self.sensitivity} Hertz.")
+            time_end = f"{self.time_step} seconds"
+
+        print(f"Reading signal file from {self.input_file} from {time_begin} to {time_end} with time step of {time_step} and frequency bin of {self.sensitivity} Hertz.")
+
         if self.tle_prediction:
             print("Turned on signal center prediction based on TLE.")
 
@@ -90,6 +99,7 @@ class Metadata:
         else:
             self.signal_type = None
         self.signal_center_frequency = json_data["signal"]["center_frequency"]
+
         if "time_of_record" in json_data["signal"] or "timestamp_of_record" in json_data["signal"]:
             if "time_of_record" in json_data["signal"]:
                 self.time_of_record = datetime.strptime(json_data["signal"]["time_of_record"], "%Y-%m-%dT%H:%M:%S.%fZ")
@@ -99,14 +109,13 @@ class Metadata:
                 utc_time = datetime.utcfromtimestamp(json_data["signal"]["timestamp_of_record"])
                 #utc_time = datetime.strftime("%Y-%m-%d %H:%M:%S.%f")
                 self.time_of_record = utc_time
-
         else:
             self.time_of_record = datetime.now()
 
         if (self.samplerate == None) and ("samplerate" in json_data["signal"]):
             self.samplerate = json_data["signal"]["samplerate"]
         if self.samplerate != None:
-            print(f"You have provided samplerate={self.samplerate}, make sure your input file is RAW.")
+            print(f"You have provided samplerate = {self.samplerate}, make sure your input file is raw (.dat/.bin/.raw).")
             self.raw_input = True
 
         self.tle_data = None
@@ -121,6 +130,7 @@ class Metadata:
         except Exception as error_message:
             print(error_message)
             raise
+
         try: 
             if "tle" in json_data:
                 self.tle_data = json_data["tle"]
@@ -129,6 +139,7 @@ class Metadata:
         except Exception as error_message:
             print(error_message)
             raise
+
         try:
             if "station" in json_data:
                 self.station_data = json_data["station"]
@@ -222,7 +233,7 @@ class Csv:
     
     def export(self):
         self.file.close()
-        print(f"Exported to {self.output_file}")
+        print(f"Exported to {self.output_file} successfully.")
 
 class Json:
     def __init__(self, signal_object):
@@ -251,7 +262,7 @@ class Json:
     
     def export(self):
         self.file.close()
-        print(f"Exported to {self.output_file}")
+        print(f"Exported to {self.output_file} successfully.")
 
 class Waterfall:
     def __init__(self, signal_object, frequency_unit='kHz', tle_prediction=False):
@@ -295,39 +306,24 @@ class Waterfall:
 
     def save_all(self, centroids):
         for channel in range(self.channel_count):   
-            actual_calculation = self.scale * (centroids[channel] + self.center_frequency)
-
+            actual_calculation = centroids[channel] + self.center_frequency
+            self.axs[channel].plot(actual_calculation * self.scale, range(self.total_step), '.', color='red', markersize = 1)
             if self.tle_prediction:
-                prediction_from_TLE = self.scale * self.TLE.Doppler_prediction(channel, range(self.total_step))
-                self.axs[channel].plot(prediction_from_TLE, range(self.total_step), '.', color='blue', markersize = 1)
-                raw_error = (actual_calculation - prediction_from_TLE)/self.scale
+                prediction_from_TLE = self.TLE.Doppler_prediction(channel, range(self.total_step))
+                self.axs[channel].plot(prediction_from_TLE * self.scale, range(self.total_step), '.', color='blue', markersize = 1)
+                raw_error = (actual_calculation - prediction_from_TLE)
                 actual_signal = ~np.isnan(raw_error)
-
-                if len(actual_signal)==0:
+                raw_error = raw_error[actual_signal]
+                if len(raw_error)==0:
                     print("No signal is found for this channel")
                 else:
-                    temporal_noise = np.std(raw_error[actual_signal])
-
-                    #for index, error in enumerate(raw_error):
-                    #    print(index, error)
-                    #    if not np.isnan(error) and np.abs(error) > 2*temporal_noise:
-                    #        print("if")
-                    #        actual_calculation[index] = np.nan
-
-                    raw_error = (actual_calculation - prediction_from_TLE)/self.scale
-                    actual_signal = ~np.isnan(raw_error)
-
-                    raw_error = raw_error[actual_signal]
-                    if len(raw_error)==0:
-                        print("No signal is found for this channel")
-                    else:
-                        standard_error = np.std(raw_error, ddof=1) / np.sqrt(np.size(raw_error))                    
-                        print(f"Finished calculation for channel {channel}, Offset to prediction = {np.mean(raw_error)} Hz, Standard Error = {standard_error} Hz")
-
-            self.axs[channel].plot(actual_calculation, range(self.total_step), '.', color='red', markersize = 1)
+                    standard_error = np.std(raw_error, ddof=1) / np.sqrt(np.size(raw_error))        
+                    offset = np.mean(raw_error)            
+                    print(f"Finished calculation for channel {channel}, Offset to prediction = {offset} Hz, Estimated true frequency = {self.channel_frequencies[channel] + offset} Hz, Standard error = {standard_error} Hz.")                  
+            
             
     def export(self, format='png'):
         self.fig.savefig(f"{self.save_path}.{format}", dpi=300)
         plt.close(self.fig)
-        print(f"Exported to {self.save_path}.{format}")
+        print(f"Exported to {self.save_path}.{format} successfully.")
 
