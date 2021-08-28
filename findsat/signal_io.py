@@ -6,6 +6,7 @@ import datetime
 import soundfile
 import tools
 from datetime import datetime, timedelta
+from astropy.time import Time
 from argparse import ArgumentParser
 # PATH=os.path.dirname(__file__)+'/'
 
@@ -24,6 +25,7 @@ class Metadata:
         self.samplerate = None
         self.raw_input = False
         self.sdr_ppm = 0.0
+        self.timestamp_of_record = 0.0
 
     def read_cli_arguments(self):
         parser = ArgumentParser()
@@ -104,14 +106,17 @@ class Metadata:
         if "time_of_record" in json_data["signal"] or "timestamp_of_record" in json_data["signal"]:
             if "time_of_record" in json_data["signal"]:
                 self.time_of_record = datetime.strptime(json_data["signal"]["time_of_record"], "%Y-%m-%dT%H:%M:%S.%fZ")
+                self.timestamp_of_record = self.time_of_record.timestamp()
 
             if "timestamp_of_record" in json_data["signal"]:
                 # preferred, even more prefeered in astropy format
-                utc_time = datetime.utcfromtimestamp(json_data["signal"]["timestamp_of_record"])
+                self.timestamp_of_record = json_data["signal"]["timestamp_of_record"]
+                utc_time = datetime.utcfromtimestamp(self.timestamp_of_record)
                 #utc_time = datetime.strftime("%Y-%m-%d %H:%M:%S.%f")
                 self.time_of_record = utc_time
         else:
             self.time_of_record = datetime.now()
+            self.timestamp_of_record = self.time_of_record.timestamp()
 
         if (self.samplerate == None) and ("samplerate" in json_data["signal"]):
             self.samplerate = json_data["signal"]["samplerate"]
@@ -124,17 +129,14 @@ class Metadata:
         else:
             self.sdr_ppm = 0.0
 
-        for c in range(len(self.channels)):
-            # correcting the channel frequencies when it is changed due to the ppm difference in sdr oscilator
-            self.channels[c] = self.channels[c] - self.sdr_ppm * self.channels[c] / 1000000.0 # parts per million
-
         self.tle_data = None
         self.station_data = None
         try:
             if len(self.channels) == 0 and ("default_channel" in json_data):
                 if len(json_data["default_channel"]) > 0:
                     for channel in json_data["default_channel"]:
-                        self.channels.append((channel["frequency"], channel["bandwidth"]))
+                        chan = channel["frequency"] + self.sdr_ppm * channel["frequency"] / 1000000.0
+                        self.channels.append((chan, channel["bandwidth"]))
             else:
                 raise Exception("Channel information must be provided in the CLI or in the json input file.")
         except Exception as error_message:
@@ -224,18 +226,24 @@ class Csv:
         self.output_file = signal_object.output_file+".csv"
         self.file = open(self.output_file, 'w', newline='')
         self.reader = csv.writer(self.file)
-        header = [f"date={signal_object.time_of_record.strftime('%Y-%m-%d')}"]
+        header = ["timestamp(utc)"]
         for channel in range(signal_object.channel_count):
             header.append(f"CH_{channel}[Hz]={signal_object.channel_frequencies[channel]}")
         self.reader.writerow(header) 
         self.center_frequency = signal_object.center_frequency
         self.total_step = signal_object.total_step
         self.channel_count = signal_object.channel_count
-        self.time_labels = [(signal_object.time_of_record + timedelta(seconds=step*signal_object.step_timelength)).strftime('%H:%M:%S.%f') for step in range(0, signal_object.total_step)]
+
+        unixtime = Time(signal_object.timestamp_of_record, format="unix", scale="utc")
+        self.signal_time = [
+            (unixtime + timedelta(seconds=step * signal_object.step_timelength)) for
+            step in range(self.total_step)]
+
+        self.time_labels = [(signal_object.time_of_record + timedelta(seconds=step*signal_object.step_timelength)).strftime('%Y-%m-%dT%H:%M:%S.%fZ') for step in range(0, signal_object.total_step)]
 
     def save_all(self, centroids):
         for step in range(self.total_step):
-            data = [self.time_labels[step]]
+            data = [self.signal_time[step]]
             for channel in range(self.channel_count):
                 centroid = None if np.isnan(centroids[channel, step]) else centroids[channel, step] + self.center_frequency
                 data.append(centroid)

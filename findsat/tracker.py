@@ -22,6 +22,7 @@ class Signal:
         self.output_file = metadata.output_file
         self.center_frequency = metadata.signal_center_frequency
         self.time_of_record = metadata.time_of_record
+        self.timestamp_of_record = metadata.timestamp_of_record
 
         self.channels = metadata.channels
         self.channel_frequencies = []
