@@ -59,13 +59,13 @@ class Metadata:
         self.filter_strength = args["filter_strength"]
         self.samplerate = args["samplerate"]
 
-        if args["channel_0"] != None and args["bandwidth_0"] != None:
+        if type(args["channel_0"]) is float and type(args["bandwidth_0"]) is float:
             self.channels.append((args["channel_0"], args["bandwidth_0"]))
-        if args["channel_1"] != None and args["bandwidth_1"] != None:
+        if type(args["channel_1"]) is float and type(args["bandwidth_1"]) is float:
             self.channels.append((args["channel_1"], args["bandwidth_1"]))
-        if args["channel_2"] != None and args["bandwidth_2"] != None:
+        if type(args["channel_2"]) is float and type(args["bandwidth_2"]) is float:
             self.channels.append((args["channel_2"], args["bandwidth_2"]))
-        if args["channel_3"] != None and args["bandwidth_3"] != None:
+        if type(args["channel_3"]) is float and type(args["bandwidth_3"]) is float:
             self.channels.append((args["channel_3"], args["bandwidth_3"]))
 
         print(f"Reading signal information from {self.info_file}")
@@ -115,9 +115,9 @@ class Metadata:
         else:
             self.time_of_record = datetime.now()
 
-        if (self.samplerate == None) and ("samplerate" in json_data["signal"]):
+        if (self.samplerate is None) and ("samplerate" in json_data["signal"]):
             self.samplerate = json_data["signal"]["samplerate"]
-        if self.samplerate != None:
+        if self.samplerate is not None:
             print(f"You have provided samplerate = {self.samplerate}, make sure your input file is raw (.dat/.bin/.raw).")
             self.raw_input = True
 
@@ -162,7 +162,7 @@ def read_info_from_wav(wav_path, step_timelength, time_begin, time_end):
         max_step = int(f.frames / step_framelength) 
         if time_begin < 0:
             time_begin = 0
-        if (time_end == None) or (time_end * fs > f.frames):
+        if (time_end is None) or (time_end * fs > f.frames):
             time_end = f.frames/fs
     return fs, step_framelength, max_step, time_begin, time_end
 
@@ -174,7 +174,7 @@ def read_info_from_bin(bin_path, step_timelength, time_begin, time_end, samplera
     max_step = int(frames / step_framelength / 2)
     if time_begin < 0:
         time_begin = 0
-    if (time_end == None) or (time_end * fs > frames):
+    if (time_end is None) or (time_end * fs > frames):
         time_end = frames/fs/2
     del f
     return fs, step_framelength, max_step, time_begin, time_end

@@ -35,10 +35,10 @@ def channel_filter(mag, resolution, pass_step_width):
     in_channel = False
     mag[-pass_step_width:-1] = 0
     for i in range(resolution):
-        if (in_channel == False) and (mag[i] > 0):
+        if (not in_channel) and (mag[i] > 0):
             in_channel = True
             channel_begin = i
-        if (in_channel == True) and (mag[i] == 0) and (np.all(mag[i+1:i+pass_step_width]==0)):
+        if (in_channel) and (mag[i] == 0) and (np.all(mag[i+1:i+pass_step_width]==0)):
             in_channel = False
             if (i - channel_begin < pass_step_width):
                 mag[channel_begin:i] = 0
