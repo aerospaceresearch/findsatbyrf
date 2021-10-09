@@ -16,6 +16,7 @@ def centroid(freq, mag):
         return  np.sum(freq * mag) / mag_sum
 
 def avg_binning(inputArray, resolution):
+    """Finding the average value of inputArray, which could be frequency or signal strength, in a bin found by divided the kernel into 'resolution' bins"""
     if len(inputArray) <= resolution:
         return inputArray
     avg_mag = np.empty(resolution)
@@ -38,6 +39,7 @@ def channel_filter(mag, resolution, pass_step_width):
                 mag[channel_begin:i] = 0
 
 def calculate_offset(input_mag, filter_strength):
+    """Calculate the offset to shift the entire kernel up or down to make all the noise strength goes below 0 to be deleted"""
     #resolution = int(full_bandwidth/pass_bandwidth)
     resolution = 16            #Divide the kernel to 16 parts
     mag = np.empty(resolution)
@@ -49,10 +51,13 @@ def calculate_offset(input_mag, filter_strength):
     return - (np.min(mag) + 3 * filter_strength * np.min(std))
 
 def lowpass_filter(centroids, step_timelength):
+    """lowpass_filter is one way to smoothen the curve of centroids.
+    """
     sos = signal.butter(8, 0.02*step_timelength, output='sos')
     return signal.sosfiltfilt(sos, centroids, padlen=int(len(centroids)/10))
 
 def peak_finding(freq_domain, mag_domain, centroid, range = 1e3):
+    """In case of narror signals such as APT/NOAA, we can find the signal peak to get an accurate result of centroid"""
     if np.isnan(centroid):
         return NaN
     local_region_indices = np.where(np.logical_and(freq_domain> centroid - range/2, freq_domain < centroid + range/2))          #Search for peaks in +- 0.5 kHz around the centroid
@@ -70,6 +75,9 @@ def remove_outliers(centroids):
     return np.clip(centroids, a_min=mean-cutoff*2, a_max=mean+cutoff*2)
 
 class TLE:
+    """
+        This is the class to find the expected frequency based on satellite's position and its TLE
+    """
     def __init__(self, signal_object):#data_path, time_of_record, total_step, step_timelength
         time_scale = load.timescale()
         self.station_name = signal_object.station_data["name"]

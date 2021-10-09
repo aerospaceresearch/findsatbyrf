@@ -10,6 +10,9 @@ from argparse import ArgumentParser
 # PATH=os.path.dirname(__file__)+'/'
 
 class Metadata:
+    """
+        This class reads from CLI and stores metadata of the signal
+    """
     def __init__(self):
         self.input_file = None
         self.info_file = None
@@ -130,6 +133,9 @@ class Metadata:
             raise
 
 def read_info_from_wav(wav_path, step_timelength, time_begin, time_end, fs):
+    """
+        Reading info from wav files
+    """
     if fs == None:
         f = soundfile.SoundFile(wav_path, 'r')
     else:
@@ -145,6 +151,9 @@ def read_info_from_wav(wav_path, step_timelength, time_begin, time_end, fs):
     return fs, step_framelength, max_step, time_begin, time_end
 
 class WavReader:
+    """
+        Reading details of the wav file
+    """
     def __init__(self, signal_object):
         frame_begin = int(signal_object.time_begin * signal_object.fs)
         self.step_framelength = signal_object.step_framelength
@@ -163,6 +172,9 @@ class WavReader:
         self.reader.close()
 
 class Csv:
+    """
+        Handling csv output
+    """
     def __init__(self, signal_object):
         self.output_file = signal_object.output_file+".csv"
         self.file = open(self.output_file, 'w', newline='')
@@ -189,6 +201,9 @@ class Csv:
         print(f"Exported to {self.output_file}")
 
 class Json:
+    """
+        Handling json output
+    """
     def __init__(self, signal_object):
         self.output_file = signal_object.output_file+".json"
         self.file = open(self.output_file, 'w')
@@ -218,6 +233,9 @@ class Json:
         print(f"Exported to {self.output_file}")
 
 class Waterfall:
+    """
+        Handling png output
+    """
     def __init__(self, signal_object, frequency_unit='kHz', tle_prediction=False):
         if frequency_unit.lower() == 'hz':
             self.scale = 1
