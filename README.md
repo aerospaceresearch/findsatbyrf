@@ -1,7 +1,7 @@
 # Overview:
 This program finds the center in the frequency domain of a signal by time.
 
-Every major work on this repository is done by [Binh-Minh Tran-Huu](https://www.linkedin.com/in/tranhuubinhminh/) under instructions and monitor from mentor [Andreas Hornig](https://www.linkedin.com/in/andreas-hornig-253b2818/) of [Aerospaceresearch.net](https://aerospaceresearch.net/) as [a project participated in Google Summer of Code 2021](https://summerofcode.withgoogle.com/projects/#5393798554714112).
+Most major work on this repository is done by [Binh-Minh Tran-Huu](https://www.linkedin.com/in/tranhuubinhminh/) under instructions, monitor and help from mentor [Andreas Hornig](https://www.linkedin.com/in/andreas-hornig-253b2818/) of [Aerospaceresearch.net](https://aerospaceresearch.net/) as [a project participated in Google Summer of Code 2021](https://summerofcode.withgoogle.com/projects/#5393798554714112).
 
 # Usage:
 
@@ -13,7 +13,8 @@ Example of a json file:
         "name": "NOAA-18",
         "type": "NOAA",
         "center_frequency": 137.5e6,
-        "time_of_record": "2021-06-04T20:17:05.00Z"
+        "time_of_record": "2021-06-04T20:17:05.00Z",
+        "samplerate": null
     },
     "tle": {
         "line_1": "1 28654U 05018A   21156.90071532  .00000084  00000-0  69961-4 0  9998",
@@ -52,7 +53,11 @@ Where:
     ]
 ```
 
-> **_NOTE:_** "tle" and "station" objects are only needed if you intend to use signal center frequency prediction based on TLE, "default_channel" object is only needed if you want to not put channel information into the command line, otherwise you can remove them. 
+**_NOTE 1:_** "tle" and "station" objects are only needed if you intend to use signal center frequency prediction based on TLE, "default_channel" object is only needed if you want to not put channel information into the command line, otherwise you can remove them. 
+
+**_NOTE 2:_** Instead of "time_of_record", you can use "timestamp_of_record" instead by replacing "time_of_record" with "timestamp_of_record", for example: "timestamp_of_record": 1629830788.1660554
+
+**_NOTE 3:_** If you want to analyze a raw/binary file, you must provide a "samplerate" either in the input json file for in the command line, otherwise remove it or let it be null value.
 
 ## Step 2: Run the program from the Command-Line Interface (CLI)
 Simply use Python to run the file [main.py](findsat/main.py) with the following arguments:
@@ -100,11 +105,11 @@ python3 findsat/main.py -i /home/MyUser/MySignal.json -f ./MySatellite/MySignal.
  
 ## Output:
 1. A time vs. frequency graph, showing the center of the signal in the frequency domain by time, for example:
-![APT_NOAA example](/docs/APT_example.png)
+![APT_NOAA example](/docs/NOAA18_example.png)
 
 2. A .csv file storing the center position in the frequency domain by time.
 3. A .json file with a "header" object containing metadata of the signal and "signal_center" object containing centers of the signal for each channel by time.
-4. On the command-line interface, if -tle is enabled, there will be information about the offset between the calculated frequencies from the wave file and from the tle file as well as the standard error of the signal compared to prediction. 
+4. On the command-line interface, if -tle is enabled, there will be information about the Offset between the calculated frequencies from the wave file and from the tle file, the Estimated true frequency calculated based on that offset, as well as the Standard error of the signal compared to prediction. 
 
 All files are exported with name and directory as selected with the [-o] argument.
 
@@ -183,12 +188,14 @@ Where n is the number of samples, x_i is the difference between our calculated c
 * [signal_io.py](/findsat/signal_io.py) stores functions and objects related to the input and output of our signals and instructions.
 
 ## Current results:
-1. For APT(NOAA): Standard error = 0.004 kHz
-![APT_NOAA example](/docs/APT_example.png)
+1. APT(NOAA 18): Standard error = 0.004 kHz
+![APT_NOAA18 example](/docs/NOAA18_example.png)
 
-2. For PIXL1(CUBESAT): Standard error = 0.029 kHz
+2. APT(NOAA 15): Standard error = 0.001 kHz
+![APT_NOAA18 example](/docs/NOAA15_example.png)
+
+3. PIXL1(CUBESAT): Standard error = 0.029 kHz
 ![PIXL example](/docs/pixl_example.png)
-
 ## Potential further improvements:
 * Expand the program to work better with more types of signals.
 * Make video-output function work with reasonable computing resources.
