@@ -49,6 +49,7 @@ class Metadata:
         parser.add_argument("-end", "--time_end", type=float, action='store', metavar='time_in_second', help="Time of end of the segment to be analyzed", default=None)
         parser.add_argument("-dev", "--developer_mode", action='store_true', help="Do not ignore warnings", default=False)
         parser.add_argument("-unit", "--frequency_unit", type=str, choices=['Hz', 'kHz', 'MHz'], action='store', metavar='Hz/kHz/MHz', help="Frequency unit of output graph", default="kHz")
+        parser.add_argument("-channel", "--channel_and_bandwidth", type=float, action='append', nargs=2, metavar='set of two frequency_in_Hz', help="Center frequency and bandwidth of channel", default=[])
         args = vars(parser.parse_args())
         self.input_file = os.path.abspath(args["input_file"])
         self.info_file = os.path.abspath(args["input_signal_info"])
@@ -71,6 +72,10 @@ class Metadata:
             self.channels.append((args["channel_2"], args["bandwidth_2"]))
         if type(args["channel_3"]) is float and type(args["bandwidth_3"]) is float:
             self.channels.append((args["channel_3"], args["bandwidth_3"]))
+
+        if len(args["channel_and_bandwidth"]) > 0:
+            for channel_and_bandwidth in args["channel_and_bandwidth"]:
+                self.channels.append((channel_and_bandwidth[0], channel_and_bandwidth[1]))
 
         print(f"Reading signal information from {self.info_file}")
         if float(self.time_begin) == 0.:
@@ -132,8 +137,8 @@ class Metadata:
                 if len(json_data["default_channel"]) > 0:
                     for channel in json_data["default_channel"]:
                         self.channels.append((channel["frequency"], channel["bandwidth"]))
-            else:
-                raise Exception("Channel information must be provided in the CLI or in the json input file.")
+                else:
+                    raise Exception("Channel information must be provided in the CLI or in the json input file.")
         except Exception as error_message:
             print(error_message)
             raise
