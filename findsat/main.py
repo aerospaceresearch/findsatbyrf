@@ -1,13 +1,14 @@
 from tracker import Signal
 from signal_io import Metadata
 from datetime import datetime
-# import warnings
-# warnings.filterwarnings("error")
+import warnings
 
 def main():
     print("Initializing... ")   
     metadata = Metadata()
     metadata.read_cli_arguments()
+    if metadata.dev_mode:
+        warnings.filterwarnings("error")   #If dev_mode is on, warnings will be treated as errors
     metadata.read_info_file()
     signal = Signal(metadata=metadata)
 
