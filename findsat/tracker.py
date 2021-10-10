@@ -6,12 +6,12 @@ from datetime import datetime
 class Signal:
     def __init__(self, metadata=None):
         try:
-            if metadata == None:
+            if metadata is None:
                 raise Exception("Loading initial input data from command-line and/or json failed")
         except Exception as error_message:
             print(error_message)
             raise      
-        if metadata.signal_type == None:
+        if metadata.signal_type is None:
             self.type = 'general'
         elif metadata.signal_type.lower() == 'noaa':
             self.type = 'NOAA'
@@ -93,7 +93,7 @@ class Signal:
                 #     avg_mag -= channel_max * safety_factor
                 filtered_mag = np.clip(avg_mag, a_min=0., a_max=None)
                 centroid = tools.centroid(self.avg_freq_domain[channel], filtered_mag)
-                if peak_finding_range != None:
+                if peak_finding_range is not None:
                     centroid = tools.peak_finding(self.avg_freq_domain[channel], filtered_mag, centroid, peak_finding_range)
                 self.centroids[channel, step] = centroid
         reader.close()

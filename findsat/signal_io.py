@@ -10,6 +10,9 @@ from argparse import ArgumentParser
 # PATH=os.path.dirname(__file__)+'/'
 
 class Metadata:
+    """
+        This class reads from CLI and stores metadata of the signal
+    """
     def __init__(self):
         self.input_file = None
         self.info_file = None
@@ -56,13 +59,13 @@ class Metadata:
         self.filter_strength = args["filter_strength"]
         self.samplerate = args["samplerate"]
 
-        if args["channel_0"] != None and args["bandwidth_0"] != None:
+        if type(args["channel_0"]) is float and type(args["bandwidth_0"]) is float:
             self.channels.append((args["channel_0"], args["bandwidth_0"]))
-        if args["channel_1"] != None and args["bandwidth_1"] != None:
+        if type(args["channel_1"]) is float and type(args["bandwidth_1"]) is float:
             self.channels.append((args["channel_1"], args["bandwidth_1"]))
-        if args["channel_2"] != None and args["bandwidth_2"] != None:
+        if type(args["channel_2"]) is float and type(args["bandwidth_2"]) is float:
             self.channels.append((args["channel_2"], args["bandwidth_2"]))
-        if args["channel_3"] != None and args["bandwidth_3"] != None:
+        if type(args["channel_3"]) is float and type(args["bandwidth_3"]) is float:
             self.channels.append((args["channel_3"], args["bandwidth_3"]))
 
         print(f"Reading signal information from {self.info_file}")
@@ -112,9 +115,9 @@ class Metadata:
         else:
             self.time_of_record = datetime.now()
 
-        if (self.samplerate == None) and ("samplerate" in json_data["signal"]):
+        if (self.samplerate is None) and ("samplerate" in json_data["signal"]):
             self.samplerate = json_data["signal"]["samplerate"]
-        if self.samplerate != None:
+        if self.samplerate is not None:
             print(f"You have provided samplerate = {self.samplerate}, make sure your input file is raw (.dat/.bin/.raw).")
             self.raw_input = True
 
@@ -150,13 +153,16 @@ class Metadata:
             raise
 
 def read_info_from_wav(wav_path, step_timelength, time_begin, time_end):
+    """
+        Reading info from wav files
+    """
     with soundfile.SoundFile(wav_path, 'r') as f:
         fs= f.samplerate
         step_framelength = int(step_timelength * fs)
         max_step = int(f.frames / step_framelength) 
         if time_begin < 0:
             time_begin = 0
-        if (time_end == None) or (time_end * fs > f.frames):
+        if (time_end is None) or (time_end * fs > f.frames):
             time_end = f.frames/fs
     return fs, step_framelength, max_step, time_begin, time_end
 
@@ -168,18 +174,24 @@ def read_info_from_bin(bin_path, step_timelength, time_begin, time_end, samplera
     max_step = int(frames / step_framelength / 2)
     if time_begin < 0:
         time_begin = 0
-    if (time_end == None) or (time_end * fs > frames):
+    if (time_end is None) or (time_end * fs > frames):
         time_end = frames/fs/2
     del f
     return fs, step_framelength, max_step, time_begin, time_end
   
 def read_info_from_data_file(file_path, step_timelength, time_begin, time_end, raw_input, samplerate):
+    """ 
+        Detect if input is binary or wav then use the appropriate method
+    """
     if raw_input:
         return read_info_from_bin(file_path, step_timelength, time_begin, time_end, samplerate)
     else:
         return read_info_from_wav(file_path, step_timelength, time_begin, time_end)
       
 class WavReader:
+    """
+        Reading details of the wav file
+    """
     def __init__(self, signal_object):
         frame_begin = int(signal_object.time_begin * signal_object.fs)
         self.step_framelength = signal_object.step_framelength
@@ -195,6 +207,9 @@ class WavReader:
         self.reader.close()
 
 class BinReader:
+    """
+        Reading details of the binary file
+    """
     def __init__(self, signal_object):
         self.frame_begin = int(signal_object.time_begin * signal_object.fs)
         self.step_framelength = signal_object.step_framelength
@@ -210,6 +225,9 @@ class BinReader:
         pass
 
 class Csv:
+    """
+        Handling csv output
+    """
     def __init__(self, signal_object):
         self.output_file = signal_object.output_file+".csv"
         self.file = open(self.output_file, 'w', newline='')
@@ -236,6 +254,9 @@ class Csv:
         print(f"Exported to {self.output_file} successfully.")
 
 class Json:
+    """
+        Handling json output
+    """
     def __init__(self, signal_object):
         self.output_file = signal_object.output_file+".json"
         self.file = open(self.output_file, 'w')
@@ -265,6 +286,9 @@ class Json:
         print(f"Exported to {self.output_file} successfully.")
 
 class Waterfall:
+    """
+        Handling png output
+    """
     def __init__(self, signal_object, frequency_unit='kHz', tle_prediction=False):
         if frequency_unit.lower() == 'hz':
             self.scale = 1
@@ -326,4 +350,3 @@ class Waterfall:
         self.fig.savefig(f"{self.save_path}.{format}", dpi=300)
         plt.close(self.fig)
         print(f"Exported to {self.save_path}.{format} successfully.")
-
