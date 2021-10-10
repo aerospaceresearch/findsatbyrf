@@ -69,7 +69,7 @@ class Signal:
         print(f"Added channel {self.channel_count}: frequency = {channel_frequency} Hz, bandwidth = {channel_bandwidth} Hz")
         self.channel_count += 1
 
-    def find_centroids(self, peak_finding_range=None, safety_factor = 0.):
+    def find_centroids(self, peak_finding_range=None):
         self.centroids = np.empty((self.channel_count, self.total_step))
 
         if self.raw_input:
@@ -79,7 +79,6 @@ class Signal:
 
         for step in range(self.total_step):
             print(f"Processing data... {step/self.total_step*100:.2f}%", end='\r')
-            #time_data = reader.read_current_step()              # * np.hanning(self.step_framelength)
             reader.step = step
             time_data = reader.read_current_step()
 
@@ -89,9 +88,6 @@ class Signal:
                 avg_mag = tools.avg_binning(channel_kernel, self.resolutions[channel])   
                 noise_offset = tools.calculate_offset(avg_mag, self.filter_strength)   
                 avg_mag += noise_offset
-                # channel_max = max(channel_max, np.max(avg_mag))
-                # if safety_factor != 0.:
-                #     avg_mag -= channel_max * safety_factor
                 filtered_mag = np.clip(avg_mag, a_min=0., a_max=None)
                 centroid = tools.centroid(self.avg_freq_domain[channel], filtered_mag)
                 if peak_finding_range is not None:
@@ -126,7 +122,10 @@ class Signal:
             print(error)
         print(f"Processing data... 100.00%", end='\r\n')
 
-    def process(self, default=True, filter=False, peak_finding_range=None, safety_factor = 0.):
+    def process(self, default=True, filter=False, peak_finding_range=None):
+        """
+            set filter to True to smoothen the output centroid curve, however the result is not good (for now) therefore it is not recommended to use.
+        """
         for channel in self.channels:
             self.add_channel(channel[0], channel[1])
         if default:
@@ -137,7 +136,7 @@ class Signal:
                 self.find_centroids()
                 self.export(filter=filter)
         else:
-            self.find_centroids(peak_finding_range=peak_finding_range, safety_factor=safety_factor)
+            self.find_centroids(peak_finding_range=peak_finding_range)
             self.export(filter=filter)
 
 

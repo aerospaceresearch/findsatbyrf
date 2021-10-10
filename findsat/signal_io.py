@@ -28,6 +28,9 @@ class Metadata:
         self.raw_input = False
 
     def read_cli_arguments(self):
+        """
+            Read arguments from cli, which provide instructions to the program
+        """
         parser = ArgumentParser()
         parser.add_argument("-f", "--input_file", type=str, action='store', metavar='wav/dat_file', help="The wav/dat wave signal file that needs to be analyzed", required= True)
         parser.add_argument("-i", "--input_signal_info", type=str, action='store', metavar='json_file', help="The json file containing the signal information", required=True)
@@ -50,6 +53,7 @@ class Metadata:
         parser.add_argument("-dev", "--developer_mode", action='store_true', help="Do not ignore warnings", default=False)
         parser.add_argument("-unit", "--frequency_unit", type=str, choices=['Hz', 'kHz', 'MHz'], action='store', metavar='Hz/kHz/MHz', help="Frequency unit of output graph", default="kHz")
         parser.add_argument("-channel", "--channel_and_bandwidth", type=float, action='append', nargs=2, metavar='set of two frequency_in_Hz', help="Center frequency and bandwidth of channel", default=[])
+
         args = vars(parser.parse_args())
         self.input_file = os.path.abspath(args["input_file"])
         self.info_file = os.path.abspath(args["input_signal_info"])
@@ -103,6 +107,9 @@ class Metadata:
             print("Turned on signal center prediction based on TLE.")
 
     def read_info_file(self):
+        """
+            Read input json file
+        """
         with open(self.info_file) as f:
             json_data = json.load(f)
         self.signal_name = json_data["signal"]["name"]
@@ -113,14 +120,14 @@ class Metadata:
         self.signal_center_frequency = json_data["signal"]["center_frequency"]
 
         if "time_of_record" in json_data["signal"] or "timestamp_of_record" in json_data["signal"]:
-            if "time_of_record" in json_data["signal"]:
-                self.time_of_record = datetime.strptime(json_data["signal"]["time_of_record"], "%Y-%m-%dT%H:%M:%S.%fZ")
-
             if "timestamp_of_record" in json_data["signal"]:
                 # preferred, even more prefeered in astropy format
                 utc_time = datetime.utcfromtimestamp(json_data["signal"]["timestamp_of_record"])
                 #utc_time = datetime.strftime("%Y-%m-%d %H:%M:%S.%f")
                 self.time_of_record = utc_time
+            elif "time_of_record" in json_data["signal"]:
+                self.time_of_record = datetime.strptime(json_data["signal"]["time_of_record"], "%Y-%m-%dT%H:%M:%S.%fZ")
+
         else:
             self.time_of_record = datetime.now()
 
@@ -176,6 +183,9 @@ def read_info_from_wav(wav_path, step_timelength, time_begin, time_end):
     return fs, step_framelength, max_step, time_begin, time_end
 
 def read_info_from_bin(bin_path, step_timelength, time_begin, time_end, samplerate):
+    """
+        Reading info from binary files
+    """
     f = np.memmap(bin_path, offset=0)
     fs = samplerate
     step_framelength = int(step_timelength * fs)
@@ -299,6 +309,9 @@ class Waterfall:
         Handling png output
     """
     def __init__(self, signal_object, frequency_unit='kHz', tle_prediction=False):
+        """
+            setting up matplotlib axes
+        """
         if frequency_unit.lower() == 'hz':
             self.scale = 1
         elif frequency_unit.lower() == 'mhz':
@@ -338,6 +351,9 @@ class Waterfall:
             self.fig.suptitle(f"Centroid positions calculated from wav\n{signal_object.name} signal recorded on {signal_object.time_of_record.strftime('%Y-%m-%d')}")
 
     def save_all(self, centroids):
+        """
+            saving centroid data to matplotlib axes
+        """
         for channel in range(self.channel_count):   
             actual_calculation = centroids[channel] + self.center_frequency
             self.axs[channel].plot(actual_calculation * self.scale, range(self.total_step), '.', color='red', markersize = 1)
