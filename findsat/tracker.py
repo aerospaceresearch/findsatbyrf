@@ -36,6 +36,7 @@ class Signal:
         self.step_timelength = metadata.time_step
         self.filter_strength = metadata.filter_strength
         self.raw_input = metadata.raw_input
+        self.unit = metadata.unit
 
         (self.fs,
         self.step_framelength, 
@@ -103,7 +104,7 @@ class Signal:
             for channel in range(self.channel_count):
                 self.centroids[channel] = tools.lowpass_filter(self.centroids[channel], self.step_timelength)
         try:
-            waterfall = io.Waterfall(self, tle_prediction = self.tle_prediction)
+            waterfall = io.Waterfall(self, frequency_unit=self.unit, tle_prediction = self.tle_prediction)
             waterfall.save_all(self.centroids)
             waterfall.export()
         except Exception as error:

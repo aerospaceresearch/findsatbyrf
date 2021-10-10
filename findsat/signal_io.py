@@ -47,6 +47,8 @@ class Metadata:
         parser.add_argument("-tle", "--tle_prediction", action='store_true', help="Use prediction from TLE", default=False)
         parser.add_argument("-begin", "--time_begin", type=float, action='store', metavar='time_in_second', help="Time of begin of the segment to be analyzed", default=0.)
         parser.add_argument("-end", "--time_end", type=float, action='store', metavar='time_in_second', help="Time of end of the segment to be analyzed", default=None)
+        parser.add_argument("-dev", "--developer_mode", action='store_true', help="Do not ignore warnings", default=False)
+        parser.add_argument("-unit", "--frequency_unit", type=str, choices=['Hz', 'kHz', 'MHz'], action='store', metavar='Hz/kHz/MHz', help="Frequency unit of output graph", default="kHz")
         args = vars(parser.parse_args())
         self.input_file = os.path.abspath(args["input_file"])
         self.info_file = os.path.abspath(args["input_signal_info"])
@@ -54,10 +56,12 @@ class Metadata:
         self.time_step = args["time_step"]
         self.sensitivity = args["sensitivity"]
         self.tle_prediction = args["tle_prediction"]
+        self.dev_mode = args["developer_mode"]
         self.time_begin = args["time_begin"]
         self.time_end = args["time_end"]
         self.filter_strength = args["filter_strength"]
         self.samplerate = args["samplerate"]
+        self.unit = args["frequency_unit"]
 
         if type(args["channel_0"]) is float and type(args["bandwidth_0"]) is float:
             self.channels.append((args["channel_0"], args["bandwidth_0"]))
