@@ -66,15 +66,18 @@ Simply use Python to run the file [main.py](findsat/main.py) with the following 
 -f wav/dat_file 
 -i json_file 
 [-o name_of_output_file] 
+[-ch0 frequency_in_Hz] [-bw0 frequency_in_Hz]
 [-ch1 frequency_in_Hz] [-bw1 frequency_in_Hz]
-[-ch2 frequency_in_Hz] [-bw2 frequency_in_Hz]
-[-bw3 frequency_in_Hz] [-ch3 frequency_in_Hz]
-[-ch4 frequency_in_Hz] [-bw4 frequency_in_Hz] 
+[-bw2 frequency_in_Hz] [-ch2 frequency_in_Hz]
+[-ch3 frequency_in_Hz] [-bw3 frequency_in_Hz] 
+[-channel frequency_in_Hz frequency_in_Hz]
 [-step time_in_second]
 [-sen frequency_in_Hz] 
 [-filter ratio_to_1]
 [-fs samples_per_second]
 [-tle] 
+[-dev]
+[-unit Hz/kHz/MHz]
 [-begin time_in_second]
 [-end time_in_second]
 ```
@@ -86,6 +89,7 @@ With:
 * -o: directory and name without extension of the wanted output file, defaults to "./output".
 * -ch0, -ch1, -ch2, -ch3: to input the frequencies (in Hz) of up to 4 channels to be analyzed. Will overwrite the "default_channel" provided by the json file.
 * -bw0, -bw1, -bw2, -bw3: to input the bandwidth (in Hz) of up to 4 channels to be analyzed. Will overwrite the "default_channel" provided by the json file.
+* -channel: to input the channel frequency and bandwidth at the same time, for example: -channel 1e6 3e3. Can be used multiple time.
 * -step: to input the length in time (in second) of each time interval, defaults to 1.
 * -sen: to input the sensitivity, which is the width of each bin in the frequency kernel (in Hz) after FFT, defaults to 1.
 * -filter: to input the strength of the noise filter as ratio to 1. For example, filter of 1.1 means the noise filter is 1.1 times as strong, or 10% stronger than the default filter.
@@ -93,6 +97,7 @@ With:
 * -begin: to input the time of begin of the segment to be analyzed, defaults to 1.
 * -end: to input the time of end of the segment to be analyzed, defaults to the end of the file.
 * -tle: used to turn on prediction based on Two-line elements (TLE) file, otherwise this function is off.
+* -dev: turn on developer mode, which will make all warnings become errors.
 
 **EXAMPLES:** 
 ```
@@ -101,6 +106,8 @@ python3 main.py -i .\MySignal.json -f MySatellite\MySignal.wav -ch0 400.575e6 -b
 python3 ./main.py -i /home/MyUser/MySignal.json -f ./MySatellite/MySignal.wav -ch0 400.575e6 -bw0 20e3 -o ./CubeSat -filter 1.1
 
 python3 findsat/main.py -i /home/MyUser/MySignal.json -f ./MySatellite/MySignal.wav
+
+python3 findsat/main.py -i /home/MyUser/MySignal.json -f ./MySatellite/MySignal.wav -channel 123e6 40e3 -channel 234e6 30e3 -channel 345e6 20e3
 ```
  
 ## Output:
