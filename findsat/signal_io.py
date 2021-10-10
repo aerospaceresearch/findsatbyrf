@@ -1,4 +1,4 @@
-iport matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 import os
 import csv, json
 import numpy as np
