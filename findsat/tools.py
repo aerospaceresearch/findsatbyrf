@@ -29,7 +29,8 @@ def avg_binning(inputArray, resolution):
 
 def channel_filter(mag, resolution, pass_step_width):
     """
-        filter our every peaks that narrower than pass_step_width, deprecated
+        Filter our every peaks that narrower than pass_step_width
+        This function is deprecated since the result is good even without this filter.
     """ 
     #tools.channel_filter(filtered_mag, self.resolutions[channel], pass_step_width = int(self.pass_bandwidth / self.channel_bandwidths[channel] * self.resolutions[channel]))
     in_channel = False
@@ -46,6 +47,7 @@ def channel_filter(mag, resolution, pass_step_width):
 def calculate_offset(input_mag, filter_strength):
     """
         Calculate the offset to shift the entire kernel up or down to make all the noise strength goes below 0 to be deleted
+        This offset calculation is based on mean value and standard deviation as explained in README.md
     """
     #resolution = int(full_bandwidth/pass_bandwidth)
     resolution = 16            #Divide the kernel to 16 parts
@@ -59,7 +61,7 @@ def calculate_offset(input_mag, filter_strength):
 
 def lowpass_filter(centroids, step_timelength):
     """
-        lowpass_filter is one way to smoothen the curve of centroids.
+        lowpass_filter is one way to smoothen the curve of centroids. Currently not used because this filter is not so reliable.
     """
     sos = signal.butter(8, 0.02*step_timelength, output='sos')
     return signal.sosfiltfilt(sos, centroids, padlen=int(len(centroids)/10))
@@ -73,13 +75,15 @@ def peak_finding(freq_domain, mag_domain, centroid, range = 1e3):
     local_region_indices = np.where(np.logical_and(freq_domain> centroid - range/2, freq_domain < centroid + range/2))          #Search for peaks in +- 0.5 kHz around the centroid
     local_mag = mag_domain[local_region_indices]
     if np.all((local_mag == 0)):
-        return NaN # this causes problems with -tle
+        return NaN 
     local_freq = freq_domain[local_region_indices]
     local_peak = np.argmax(local_mag)
     return local_freq[local_peak]
 
 def remove_outliers(centroids):
-    """Removing ourliers for centroids"""
+    """
+        Removing ourliers for centroids in post-processing step. It removes every centroid that is too far away from the mean value.
+    """
     cutoff = np.std(centroids)
     mean = np.mean(centroids)
     return np.clip(centroids, a_min=mean-cutoff*2, a_max=mean+cutoff*2)
@@ -102,7 +106,7 @@ class TLE:
 
     def Doppler_prediction(self, channel, steps):
         """
-        function to calculated Doppler shift frequency from skyfield objects, ideas from https://en.wikipedia.org/wiki/Relativistic_Doppler_effect#Motion_in_an_arbitrary_direction
+        function to calculated Doppler shift frequency from skyfield objects, used equation is from https://en.wikipedia.org/wiki/Relativistic_Doppler_effect#Motion_in_an_arbitrary_direction
         """
         Doppler_freqs = np.empty_like(steps)
         relative = self.station - self.satellite

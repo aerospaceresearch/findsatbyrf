@@ -87,9 +87,9 @@ With:
 * -f (required): to input the directory of the wave file.
 * -i (required): to input the json signal information file.
 * -o: directory and name without extension of the wanted output file, defaults to "./output".
-* -ch0, -ch1, -ch2, -ch3: to input the frequencies (in Hz) of up to 4 channels to be analyzed. Will overwrite the "default_channel" provided by the json file.
+* -ch0, -ch1, -ch2, -ch3: to input the frequencies (in Hz) of up to 4 channels to be analyzed (to add more channels, use -channel below). Will overwrite the "default_channel" provided by the json file.
 * -bw0, -bw1, -bw2, -bw3: to input the bandwidth (in Hz) of up to 4 channels to be analyzed. Will overwrite the "default_channel" provided by the json file.
-* -channel: to input the channel frequency and bandwidth at the same time, for example: -channel 1e6 3e3. Can be used multiple time.
+* -channel: to input the channel frequency and bandwidth at the same time, for example: -channel 1e6 3e3. Can be used multiple time. Input channels will be put in ascending order.
 * -step: to input the length in time (in second) of each time interval, defaults to 1.
 * -sen: to input the sensitivity, which is the width of each bin in the frequency kernel (in Hz) after FFT, defaults to 1.
 * -filter: to input the strength of the noise filter as ratio to 1. For example, filter of 1.1 means the noise filter is 1.1 times as strong, or 10% stronger than the default filter.
